@@ -14,6 +14,6 @@ fn main() {
     println!("{}", grades);
 }
 ```
-*working example in src/example.rs*
+*working example in src/main.rs*
 
 ## WIP
