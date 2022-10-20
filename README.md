@@ -1,7 +1,9 @@
 # educlient-rs
+
 *very basic* Edupage API written in Rust
 
 ## Usage
+
 ```rust
 use educlient::Educlient;
 
@@ -13,3 +15,5 @@ fn main() {
 }
 ```
 *working example in src/example.rs*
+
+## WIP

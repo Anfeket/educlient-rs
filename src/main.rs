@@ -12,19 +12,8 @@ fn main() {
     println!("Domain:");
     std::io::stdin().read_line(&mut domain).expect("Failed to read line");
 
-    // create client
-    let client = Educlient::new(&domain);
-
-    // login
-    client.login(username, password);
-    if client.logged_in {
-        println!("Logged in!");
-    } else {
-        panic!("Login failed!");
-    }
-
-    // get grades
-    let grades = client.get_grades().1;
-    println!("{}", grades);
-    
+    let mut client = Educlient::new(username, password, domain);
+    client.login();
+    let (_client, grades) = client.get_grades();
+    println!("{:?}", grades);
 }
