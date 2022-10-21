@@ -72,10 +72,10 @@ impl Educlient {
         let res = self.session.post(url).form(&params).send().unwrap();
         if res.url().as_str().contains("bad=1") {
             self.logged_in = false;
-            Ok(self)
+            Err(Error::LoginFailed)
         } else {
             self.logged_in = true;
-            Err(Error::LoginFailed)
+            Ok(self)
         }
     }
 
