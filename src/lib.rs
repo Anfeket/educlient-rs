@@ -87,7 +87,6 @@ impl Educlient {
         let data = data.split("userhome(").collect::<Vec<_>>();
         let data = data[1].split(");").collect::<Vec<_>>();
         let data = data[0].to_string();
-        println!("{}", data);
         let data: Value = serde_json::from_str(&data).unwrap();
         if data.is_null() {
             self.logged_in = false;
@@ -105,16 +104,15 @@ impl Educlient {
         let url = format!("https://{}.edupage.org/znamky/?", self.domain);
         let res = self.session.get(url).send();
         if res.is_err() {
-            Err(Error::NoResponse)
+            return Err(Error::NoResponse);
+        }
+        let res = res.unwrap().text().unwrap();
+        let to_parse = res.split(".znamkyStudentViewer(").collect::<Vec<_>>()[1].split(");\r\n\t\t});\r\n\t\t</script>").collect::<Vec<_>>()[0];
+        let json = serde_json::from_str(to_parse);
+        if json.is_err() {
+            return Err(Error::ParseError);
         } else {
-            let res = res.unwrap().text().unwrap();
-            let to_parse = res.split(".znamkyStudentViewer(").collect::<Vec<_>>()[1].split(");\r\n\t\t});\r\n\t\t</script>").collect::<Vec<_>>()[0];
-            let json = serde_json::from_str(to_parse);
-            if json.is_err() {
-                Err(Error::ParseError)
-            } else {
-                Ok(json.unwrap())
-            }
+            return Ok(json.unwrap());
         }
     }
 

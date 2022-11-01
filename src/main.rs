@@ -1,5 +1,4 @@
 use educlient::Educlient;
-// use serde_json;
 
 fn main() {
     // argv
@@ -15,5 +14,7 @@ fn main() {
     // login
     let mut client = Educlient::new(username, password, domain);
     client.login().unwrap();
-    println!("\n\n\n\n\n\n\n\n\n\n\nRozdelovac\n{}", client.data);
+
+    // return grades in json
+    println!("{}", client.get_grades().unwrap())
 }
