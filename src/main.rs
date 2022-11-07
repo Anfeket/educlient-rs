@@ -14,7 +14,8 @@ fn main() {
     // login
     let mut client = Educlient::new(username, password, domain);
     client.login().unwrap();
+    client.get_account_info().unwrap();
 
-    // return grades in json
-    println!("{}", client.get_grades().unwrap())
+    // print account info
+    println!("{:?}", client.account);
 }

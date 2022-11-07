@@ -28,7 +28,7 @@ pub enum Error {
     Unknown,
 }
 
-
+#[derive(Debug)]
 pub struct Educlient {
     pub logged_in: bool,
     pub domain: String,
@@ -37,6 +37,7 @@ pub struct Educlient {
     pub account: EduAccount,
 }
 
+#[derive(Debug)]
 pub struct EduAccount {
     pub username: String,
     pub password: String,
@@ -116,7 +117,38 @@ impl Educlient {
         }
     }
 
-    pub fn get_account_info(&self) -> &EduAccount {
-        &self.account
+    pub fn get_account_info(&mut self) -> Result<&Educlient, Error> {
+        if !self.logged_in {
+            return Err(Error::NotLoggedIn);
+        }
+        let (account_type, id) = Educlient::_get_account_type(&self.data);
+        let name = format!("{} {}", self.data["userrow"]["p_meno"].as_str().unwrap(), self.data["userrow"]["p_priezvisko"].as_str().unwrap());
+        let gender = match self.data["userrow"]["p_pohlavie"].as_str().unwrap() {
+            "1" => Gender::Male,
+            "2" => Gender::Female,
+            _ => Gender::Unknown
+        };
+        let account = EduAccount {
+            username: self.account.username.clone(),
+            password: self.account.password.clone(),
+            id,
+            name,
+            gender,
+            account_type,
+        };
+        self.account = account;
+        Ok(self)
+    }
+
+    fn _get_account_type(data: &Value) -> (AccountType, i32) {
+        if !data["userrow"]["StudentID"].is_null() {
+            (AccountType::Student, data["userrow"]["StudentID"].as_str().unwrap().parse::<i32>().unwrap())
+        } else if !data["userrow"]["RodicID"].is_null() {
+            (AccountType::Parent, data["userrow"]["RodicID"].as_str().unwrap().parse::<i32>().unwrap())
+        } else if !data["userrow"]["UcitelID"].is_null() {
+            (AccountType::Teacher, data["userrow"]["UcitelID"].as_str().unwrap().parse::<i32>().unwrap())
+        } else {
+            (AccountType::Unknown, 0)
+        }
     }
 }
