@@ -19,7 +19,7 @@ jobs:
       - checkout
       - run: 
           command: |
-            apt install mingw-w64
+            sudo apt install mingw-w64
             cargo build --target x86_64-pc-windows-gnu
       - store_artifacts:
           path: /home/circleci/project/target/x86_64-pc-windows-gnu/release/educlient.exe
