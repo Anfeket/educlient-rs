@@ -6,16 +6,38 @@ version: 2.1
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 
 jobs:
-  rust-build:
+  rust-test:
     docker:
       - image: cimg/rust:1.45.0
     steps:
       - checkout
-      - run: cargo --version
+      - run: cargo check
+  rust-build-win:
+    docker:
+      - image: cimg/rust:1.45.0
+    steps:
+      - checkout
+      - run: cargo build --release --target x86_64-pc-windows-gnu
+      - store_artifacts:
+          path: /target/release/educlient.exe
+  rust-build-linux:
+    docker:
+      - image: cimg/rust:1.45.0
+    steps:
+      - checkout
+      - run: cargo build --release --target x86_64-unknown-linux-gnu
+      - store_artifacts:
+          path: /target/release/educlient
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   rust-build-workflow:
     jobs:
-      - rust-build
+      - rust-test
+      - rust-build-win:
+          requires: 
+            - rust-test
+      - rust-build-linux:
+          requires:
+            - rust-test
