@@ -11,6 +11,7 @@ jobs:
       - image: cimg/rust:1.64.0
     steps:
       - checkout
+      - run: cargo --version
       - run: cargo check
   rust-build-win:
     docker:
