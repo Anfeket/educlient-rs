@@ -17,21 +17,26 @@ jobs:
       - image: cimg/rust:1.64.0
     steps:
       - checkout
-      - run: 
+      - run:
+          name: Cargo release build
           command: |
             sudo apt install mingw-w64
             rustup target add x86_64-pc-windows-gnu
-            cargo build --target x86_64-pc-windows-gnu
+            cargo build --release --target x86_64-pc-windows-gnu
       - store_artifacts:
           path: /home/circleci/project/target/x86_64-pc-windows-gnu/release/educlient.exe
+          destination: windows
   rust-build-linux:
     docker:
       - image: cimg/rust:1.64.0
     steps:
       - checkout
-      - run: cargo build --release --target x86_64-unknown-linux-gnu
+      - run:
+          name: Cargo release build
+          command: cargo build --release --target x86_64-unknown-linux-gnu
       - store_artifacts:
           path: /home/circleci/project/target/x86_64-unknown-linux-gnu/release/educlient
+          destination: linux
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
