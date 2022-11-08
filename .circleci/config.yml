@@ -12,10 +12,6 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - persist_to_workspace:
-          root: target
-          paths:
-            - debug
   rust-build-win:
     docker:
       - image: cimg/rust:1.64.0
@@ -60,6 +56,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: target
+      - run: sleep 180
           
 
 # Invoke jobs via workflows
