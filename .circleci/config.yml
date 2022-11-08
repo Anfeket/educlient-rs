@@ -6,7 +6,7 @@ version: 2.1
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 
 jobs:
-  rust-test:
+  rust-cache:
     docker:
       - image: cimg/rust:1.64.0
     steps:
@@ -37,16 +37,25 @@ jobs:
       - store_artifacts:
           path: /home/circleci/project/target/x86_64-unknown-linux-gnu/release/educlient
           destination: linux
+  publish:
+    docker:
+      - image: ubuntu-2204:current
+    steps:
+      - run: pause
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   rust-build-workflow:
     jobs:
-      - rust-test
+      - rust-cache
       - rust-build-win:
           requires: 
-            - rust-test
+            - rust-cache
       - rust-build-linux:
           requires:
-            - rust-test
+            - rust-cache
+      - publish:
+          requires:
+            - rust-build-linux
+            - rust-build-win
