@@ -39,7 +39,7 @@ jobs:
           destination: linux
   publish:
     docker:
-      - image: ubuntu-2204:current
+      - image: cimg/base:current
     steps:
       - run: pause
 
