@@ -12,7 +12,6 @@ jobs:
     steps:
       - checkout
       - run: cargo --version
-      - run: echo "workspace test" > target/debug/test1
       - persist_to_workspace:
           root: target
           paths:
