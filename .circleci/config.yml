@@ -11,7 +11,8 @@ jobs:
       - image: cimg/rust:1.64.0
     steps:
       - checkout
-      - run: cargo check
+      - run: cargo --version
+      - run: echo "workspace test" > target/debug/test1
       - persist_to_workspace:
           root: target
           paths:
@@ -58,7 +59,6 @@ jobs:
       - image: cimg/base:current
     steps:
       - checkout
-      - run: read
       - attach_workspace:
           at: target
           
