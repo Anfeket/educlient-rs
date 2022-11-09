@@ -63,6 +63,8 @@ jobs:
             mv target/x86_64-pc-windows-gnu/release/educlient.exe release/educlient.exe
       - store_artifacts:
           path: release
+      - github-cli/setup:
+          token: GHTOKEN
           
 
 # Invoke jobs via workflows
@@ -85,5 +87,4 @@ workflows:
           requires:
             - publish
           files: release/*
-          tag: v0.0.1 
-          token: GHTOKEN
+          tag: v0.0.1
