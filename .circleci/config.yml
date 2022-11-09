@@ -85,5 +85,5 @@ workflows:
           context: GHTOKEN
           requires:
             - publish
-          files: release/*
+          files: release
           tag: v0.0.1
