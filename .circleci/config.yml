@@ -61,6 +61,7 @@ jobs:
             mkdir release
             mv target/x86_64-unknown-linux-gnu/release/educlient release/educlient
             mv target/x86_64-pc-windows-gnu/release/educlient.exe release/educlient.exe
+            echo $GHTOKEN
       - store_artifacts:
           path: release
       - github-cli/setup:
