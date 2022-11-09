@@ -30,9 +30,6 @@ jobs:
             sudo apt install mingw-w64
             rustup target add x86_64-pc-windows-gnu
             cargo build --release --target x86_64-pc-windows-gnu
-      - store_artifacts:
-          path: /home/circleci/project/target/x86_64-pc-windows-gnu/release/educlient.exe
-          destination: windows
       - persist_to_workspace:
           root: target
           paths:
@@ -47,9 +44,6 @@ jobs:
       - run:
           name: Cargo release build
           command: cargo build --release --target x86_64-unknown-linux-gnu
-      - store_artifacts:
-          path: /home/circleci/project/target/x86_64-unknown-linux-gnu/release/educlient
-          destination: linux
       - persist_to_workspace:
           root: target
           paths:
@@ -67,6 +61,8 @@ jobs:
             mkdir release
             mv target/x86_64-unknown-linux-gnu/release/educlient release/educlient
             mv target/x86_64-pc-windows-gnu/release/educlient.exe release/educlient.exe
+      - store_artifacts:
+          path: release
           
 
 # Invoke jobs via workflows
@@ -88,6 +84,6 @@ workflows:
       - github-cli/release:
           requires:
             - publish
-          files: release/* 
-          draft: true 
+          files: release/*
           tag: v0.0.1 
+          token: GHTOKEN
