@@ -63,8 +63,7 @@ jobs:
             mv target/x86_64-pc-windows-gnu/release/educlient.exe release/educlient.exe
       - store_artifacts:
           path: release
-      - github-cli/setup
-          
+
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
@@ -79,7 +78,6 @@ workflows:
           requires:
             - rust-cache
       - publish:
-          context: GHTOKEN
           requires:
             - rust-build-linux
             - rust-build-win
