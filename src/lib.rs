@@ -47,6 +47,7 @@ pub struct EduAccount {
     pub account_type: AccountType,
 }
 
+
 impl Educlient {
     pub fn new(username: String, password: String, domain: String) -> Educlient {
         let session = blocking::Client::builder()
@@ -56,9 +57,9 @@ impl Educlient {
         let account = EduAccount {
             username,
             password,
+            id: 0,
             name: "".to_string(),
             gender: Gender::Unknown,
-            id: 0,
             account_type: AccountType::Unknown,
         };
         Educlient {
@@ -150,5 +151,27 @@ impl Educlient {
         } else {
             (AccountType::Unknown, 0)
         }
+    }
+
+    pub fn get_plan(&self, time: &str /* YYYY-MM-DD */) -> Result<serde_json::Value, Error> {
+        if !self.logged_in {
+            return Err(Error::NotLoggedIn);
+        }
+        let data = self.data["dp"]["dates"][time].clone();
+        if data.is_null() {
+            return Err(Error::ParseError);
+        }
+        Ok(data["plan"].clone())
+    }
+
+    pub fn get_plan_days(&self) -> Result<Vec<String>, Error> {
+        if !self.logged_in {
+            return Err(Error::NotLoggedIn);
+        }
+        let mut days = Vec::new();
+        for (key, _) in self.data["dp"]["dates"].as_object().unwrap() {
+            days.push(key.to_string());
+        }
+        Ok(days)
     }
 }
