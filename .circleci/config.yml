@@ -63,6 +63,11 @@ jobs:
             mv target/x86_64-pc-windows-gnu/release/educlient.exe release/educlient.exe
       - store_artifacts:
           path: release
+      - persist_to_workspace:
+          root: release
+          paths:
+            - "educlient"
+            - "educlient.exe"
 
 
 # Invoke jobs via workflows
