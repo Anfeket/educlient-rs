@@ -12,10 +12,17 @@ fn main() {
     let domain = args[3].clone();
 
     // login
-    let mut client = Educlient::new(username, password, domain);
-    client.login().unwrap();
-    client.get_account_info().unwrap();
+    let mut client = Educlient::new(domain);
+    let res = client.login(username, password);
+    if res.is_err() {
+        println!("Login failed");
+        return;
+    }
 
-    // print account info
-    println!("{:?}", client.account);
+    let deserialize = client.deserialize();
+    if deserialize.is_err() {
+        println!("Failed to deserialize data");
+        return;
+    }
+    println!("{:?}", deserialize.unwrap());
 }

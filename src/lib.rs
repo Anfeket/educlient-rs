@@ -1,32 +1,9 @@
-#![crate_type = "lib"]
-#![crate_name = "educlient"]
+pub mod edupage_data;
+pub mod edupage_types;
 
+use edupage_types::*;
 use reqwest::blocking;
 use serde_json::Value;
-
-#[derive(Debug)]
-pub enum Gender {
-    Male,
-    Female,
-    Unknown,
-}
-
-#[derive(Debug)]
-pub enum AccountType {
-    Student,
-    Parent,
-    Teacher,
-    Unknown,
-}
-
-#[derive(Debug)]
-pub enum Error {
-    LoginFailed,
-    NotLoggedIn,
-    NoResponse,
-    ParseError,
-    Unknown,
-}
 
 #[derive(Debug)]
 pub struct Educlient {
@@ -34,48 +11,28 @@ pub struct Educlient {
     pub domain: String,
     pub data: serde_json::Value,
     pub session: blocking::Client,
-    pub account: EduAccount,
-}
-
-#[derive(Debug)]
-pub struct EduAccount {
-    pub username: String,
-    pub password: String,
-    pub id: i32,
-    pub name: String,
-    pub gender: Gender,
-    pub account_type: AccountType,
 }
 
 
 impl Educlient {
-    pub fn new(username: String, password: String, domain: String) -> Educlient {
+    pub fn new(domain: String) -> Educlient {
         let session = blocking::Client::builder()
             .cookie_store(true)
             .build()
             .unwrap();
-        let account = EduAccount {
-            username,
-            password,
-            id: 0,
-            name: "".to_string(),
-            gender: Gender::Unknown,
-            account_type: AccountType::Unknown,
-        };
         Educlient {
             logged_in: false,
             domain,
-            data: Value::Null,
+            data: serde_json::Value::Null,
             session,
-            account,
         }
     }
 
-    pub fn login(&mut self) -> Result<&Educlient, Error> {
+    pub fn login(&mut self, username: String, password: String) -> Result<&Educlient, Error> {
         let url = format!("https://{}.edupage.org/login/edubarlogin.php", self.domain);
         let params = [
-            ("username", self.account.username.as_str()),
-            ("password", self.account.password.as_str()),
+            ("username", username),
+            ("password", password),
         ];
         let res = self.session.post(url).form(&params).send().unwrap();
         if res.url().as_str().contains("bad=1") {
@@ -118,60 +75,154 @@ impl Educlient {
         }
     }
 
-    pub fn get_account_info(&mut self) -> Result<&Educlient, Error> {
+    pub fn deserialize(&self) -> Result<edupage_data::Data, Error> {
         if !self.logged_in {
             return Err(Error::NotLoggedIn);
         }
-        let (account_type, id) = Educlient::_get_account_type(&self.data);
-        let name = format!("{} {}", self.data["userrow"]["p_meno"].as_str().unwrap(), self.data["userrow"]["p_priezvisko"].as_str().unwrap());
-        let gender = match self.data["userrow"]["p_pohlavie"].as_str().unwrap() {
-            "1" => Gender::Male,
-            "2" => Gender::Female,
-            _ => Gender::Unknown
+        let mut data = self.data.clone();
+
+        data["year"] = data["dp"]["year"].clone();
+        
+        let user = match data["userid"].as_str().unwrap().chars().nth(0).unwrap().to_string().as_str() {
+            "S" => AccountType::Student,
+            "R" => AccountType::Parent,
+            "U" => AccountType::Teacher,
+            _ => return Err(Error::ParseError),
         };
-        let account = EduAccount {
-            username: self.account.username.clone(),
-            password: self.account.password.clone(),
-            id,
-            name,
-            gender,
-            account_type,
+        data["userrow"]["user_type"] = serde_json::Value::from(match user {
+            AccountType::Student => "Student",
+            AccountType::Parent => "Parent",
+            AccountType::Teacher => "Teacher",
+        });
+
+        for i in data["zvonenia"].as_array_mut().unwrap() {
+            i["id"] = serde_json::Value::from(i["id"].as_str().unwrap().replace("zvonenie", "").parse::<i32>().unwrap());
+        }
+        
+        let id = match user {
+            AccountType::Student => data["userid"].as_str().unwrap().replace("Student", ""),
+            AccountType::Parent => data["userid"].as_str().unwrap().replace("Rodic", ""),
+            AccountType::Teacher => data["userid"].as_str().unwrap().replace("Ucitel", ""),
         };
-        self.account = account;
-        Ok(self)
-    }
+        let id = id.parse::<i32>().unwrap();
+        data["userrow"]["id"] = serde_json::Value::from(id);
+        data["userrow"]["gender"] = match data["userrow"]["p_pohlavie"].as_str().unwrap() {
+            "1" => serde_json::Value::from("Male"),
+            "2" => serde_json::Value::from("Female"),
+            _ => return Err(Error::ParseError),
+        };
+        data["userrow"]["TriedaID"] = serde_json::Value::Number(data["userrow"]["TriedaID"].as_str().unwrap().parse::<i64>().unwrap().into());
+        
+        for i in data["dbi"]["parents"].as_object_mut().unwrap().values_mut() {
+            i["gender"] = match i["gender"].as_str().unwrap() {
+                "M" => serde_json::Value::from("Male"),
+                "F" => serde_json::Value::from("Female"),
+                _ => todo!()
+            };
+            i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+        }
+        
+        for i in data["dbi"]["students"].as_object_mut().unwrap().values_mut() {
+            let mut parents: Vec<i64> = Vec::new();
+            for y in 0..3 {
+                let parent = format!("parent{}id", y+1);
+                if i[&parent].as_str().unwrap() == "" {
+                    parents.push(0);
+                    continue;
+                }
+                parents.push(i[&parent].as_str().unwrap().parse::<i64>().unwrap());
+            }
+            i["parents"] = serde_json::Value::Array(parents.into_iter().map(|x| serde_json::Value::Number(x.into())).collect());
 
-    fn _get_account_type(data: &Value) -> (AccountType, i32) {
-        if !data["userrow"]["StudentID"].is_null() {
-            (AccountType::Student, data["userrow"]["StudentID"].as_str().unwrap().parse::<i32>().unwrap())
-        } else if !data["userrow"]["RodicID"].is_null() {
-            (AccountType::Parent, data["userrow"]["RodicID"].as_str().unwrap().parse::<i32>().unwrap())
-        } else if !data["userrow"]["UcitelID"].is_null() {
-            (AccountType::Teacher, data["userrow"]["UcitelID"].as_str().unwrap().parse::<i32>().unwrap())
-        } else {
-            (AccountType::Unknown, 0)
-        }
-    }
+            i["classid"] = serde_json::Value::Number(i["classid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["numberinclass"] = serde_json::Value::Number(i["numberinclass"].as_str().unwrap().parse::<i64>().unwrap().into());
 
-    pub fn get_plan(&self, time: &str /* YYYY-MM-DD */) -> Result<serde_json::Value, Error> {
-        if !self.logged_in {
-            return Err(Error::NotLoggedIn);
+            
+            i["gender"] = match i["gender"].as_str().unwrap() {
+                "M" => serde_json::Value::from("Male"),
+                "F" => serde_json::Value::from("Female"),
+                _ => return Err(Error::ParseError),
+            };
         }
-        let data = self.data["dp"]["dates"][time].clone();
-        if data.is_null() {
-            return Err(Error::ParseError);
-        }
-        Ok(data["plan"].clone())
-    }
 
-    pub fn get_plan_days(&self) -> Result<Vec<String>, Error> {
-        if !self.logged_in {
-            return Err(Error::NotLoggedIn);
+        for i in data["dbi"]["subjects"].as_object_mut().unwrap().values_mut() {
+            i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
         }
-        let mut days = Vec::new();
-        for (key, _) in self.data["dp"]["dates"].as_object().unwrap() {
-            days.push(key.to_string());
+        
+        for i in data["dbi"]["teachers"].as_object_mut().unwrap().values_mut() {
+            i["gender"] = match i["gender"].as_str().unwrap() {
+                "M" => serde_json::Value::from("Male"),
+                "F" => serde_json::Value::from("Female"),
+                _ => todo!()
+            };
+            i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+            if i["classroomid"] != "" {
+                i["classroomid"] = serde_json::Value::Number(i["classroomid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            } else {
+                i["classroomid"] = serde_json::Value::Number(0.into());
+            }
         }
-        Ok(days)
+        
+        for i in data["dbi"]["plans"].as_object_mut().unwrap().values_mut() {
+            let mut ids = Vec::new();
+            for j in i["ucitelids"].as_array().unwrap() {
+                ids.push(serde_json::Value::Number(j.as_str().unwrap().parse::<i64>().unwrap().into()));
+            }
+            i["ucitelids"] = serde_json::Value::Array(ids);
+            let mut ids = Vec::new();
+            for j in i["students"].as_array().unwrap() {
+                if j.is_i64() {
+                    ids.push(j.clone());
+                    continue;
+                }
+                ids.push(serde_json::Value::Number(j.as_str().unwrap().parse::<i64>().unwrap().into()));
+            }
+            i["students"] = serde_json::Value::Array(ids);
+            i["planid"] = serde_json::Value::Number(i["planid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["predmetid"] = serde_json::Value::Number(i["predmetid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            for y in i["triedy"].as_array_mut().unwrap() {
+                if y.is_string() {
+                    *y = serde_json::Value::Number(y.as_str().unwrap().parse::<i64>().unwrap().into());
+                }
+            }
+        }
+
+        for i in data["dbi"]["classrooms"].as_object_mut().unwrap().values_mut() {
+            i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+        }
+
+        for i in data["dbi"]["classes"].as_object_mut().unwrap().values_mut() {
+            for y in ["classroomid", "grade", "id", "teacherid", "teacher2id"] {
+                if i[y].as_str().unwrap() == "" {
+                    i[y] = serde_json::Value::Number(0.into());
+                    continue;
+                }
+                i[y] = serde_json::Value::Number(i[y].as_str().unwrap().parse::<i64>().unwrap().into());
+            }
+        }
+        
+        for i in ["classes", "classrooms", "plans", "students", "subjects", "teachers", "parents"].iter() {
+            let mut arr = Vec::new();
+            for j in data["dbi"][i].as_object().unwrap().values() {
+                arr.push(j.clone());
+            }
+            data["dbi"][i] = serde_json::Value::Array(arr);
+        }
+
+        let mut dayplans = Vec::new();
+        for i in data["dp"]["dates"].as_object().unwrap() {
+            let mut dayplan = serde_json::json!({});
+            dayplan["date"] = serde_json::Value::String(i.0.clone());
+            dayplan["plans"] = serde_json::Value::Array(Vec::new());
+            dayplans.push(dayplan);
+        }
+        data["day_plans"] = serde_json::Value::Array(dayplans);
+        
+        // write data to file
+        let mut file = std::fs::File::create("data.json").unwrap();
+        std::io::Write::write_all(&mut file, serde_json::to_string(&data).unwrap().as_bytes()).unwrap();
+        let data: edupage_data::Data = serde::Deserialize::deserialize(data).unwrap();
+        Ok(data)
     }
 }
