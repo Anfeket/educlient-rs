@@ -3,15 +3,11 @@ use crate::edupage_types::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Data {
-    #[serde(rename = "zvonenia")]
     ringing: Vec<Ringing>,
-    #[serde(rename = "userrow")]
     userdata: User,
     dbi: DBI,
-    #[serde(rename = "meninyDnes")]
-    name_day_today: String,
-    #[serde(rename = "meninyZajtra")]
-    name_day_tomorrow: String,
+    nameday_today: String,
+    nameday_tomorrow: String,
     day_plans: Vec<DayPlan>,
     year: i32,
 }
@@ -146,8 +142,6 @@ pub struct DayPlan {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ringing {
     id: i32,
-    #[serde(rename = "starttime")]
     start: String,
-    #[serde(rename = "endtime")]
     end: String,
 }

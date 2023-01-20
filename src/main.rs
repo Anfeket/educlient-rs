@@ -24,5 +24,9 @@ fn main() {
         println!("Failed to deserialize data");
         return;
     }
-    println!("{:?}", deserialize.unwrap());
+
+    let data = deserialize.unwrap();
+    //write to file
+    let file = std::fs::File::create("data.json").unwrap();
+    serde_json::to_writer_pretty(&file, &data).unwrap();
 }

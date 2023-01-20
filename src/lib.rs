@@ -96,8 +96,11 @@ impl Educlient {
         });
 
         for i in data["zvonenia"].as_array_mut().unwrap() {
+            i["start"] = i["starttime"].clone();
+            i["end"] = i["endtime"].clone();
             i["id"] = serde_json::Value::from(i["id"].as_str().unwrap().replace("zvonenie", "").parse::<i32>().unwrap());
         }
+        data["ringing"] = data["zvonenia"].clone();
         
         let id = match user {
             AccountType::Student => data["userid"].as_str().unwrap().replace("Student", ""),
@@ -111,8 +114,13 @@ impl Educlient {
             "2" => serde_json::Value::from("Female"),
             _ => return Err(Error::ParseError),
         };
-        data["userrow"]["TriedaID"] = serde_json::Value::Number(data["userrow"]["TriedaID"].as_str().unwrap().parse::<i64>().unwrap().into());
-        
+
+        if !data["userrow"]["TriedaID"].is_null() {
+            data["userrow"]["TriedaID"] = serde_json::Value::Number(data["userrow"]["TriedaID"].as_str().unwrap().parse::<i64>().unwrap().into());
+        } else {
+            data["userrow"]["TriedaID"] = serde_json::Value::Number(0.into());
+        }
+
         for i in data["dbi"]["parents"].as_object_mut().unwrap().values_mut() {
             i["gender"] = match i["gender"].as_str().unwrap() {
                 "M" => serde_json::Value::from("Male"),
@@ -218,10 +226,10 @@ impl Educlient {
             dayplans.push(dayplan);
         }
         data["day_plans"] = serde_json::Value::Array(dayplans);
-        
-        // write data to file
-        let mut file = std::fs::File::create("data.json").unwrap();
-        std::io::Write::write_all(&mut file, serde_json::to_string(&data).unwrap().as_bytes()).unwrap();
+
+        data["userdata"] = data["userrow"].clone();
+        data["nameday_today"] = data["meninyDnes"].clone();
+        data["nameday_tomorrow"] = data["meninyZajtra"].clone();
         let data: edupage_data::Data = serde::Deserialize::deserialize(data).unwrap();
         Ok(data)
     }
