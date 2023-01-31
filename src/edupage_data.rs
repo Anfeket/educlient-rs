@@ -3,145 +3,122 @@ use crate::edupage_types::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Data {
-    ringing: Vec<Ringing>,
-    userdata: User,
-    dbi: DBI,
-    nameday_today: String,
-    nameday_tomorrow: String,
-    day_plans: Vec<DayPlan>,
-    year: i32,
+    pub ringing: Vec<Ringing>,
+    pub userdata: User,
+    pub dbi: DBI,
+    pub nameday_today: String,
+    pub nameday_tomorrow: String,
+    pub day_plans: Vec<DayPlan>,
+    pub year: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
-    id: i32,
-    #[serde(rename = "TriedaID")]
-    class_id: i32,
-    user_type: AccountType,
-    #[serde(rename = "p_meno")]
-    first_name: String,
-    #[serde(rename = "p_priezvisko")]
-    last_name: String,
-    #[serde(rename = "p_mail")]
-    mail: String,
-    gender: Gender,
-    #[serde(rename = "p_www_login")]
-    login: String,
+    pub id: i32,
+    pub class_id: i32,
+    pub user_type: AccountType,
+    pub first_name: String,
+    pub last_name: String,
+    pub mail: String,
+    pub gender: Gender,
+    pub login: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DBI {
-    classes: Vec<Class>,
-    classrooms: Vec<Classroom>,
-    parents: Vec<Parent>,
-    plans: Vec<Plan>,
-    students: Vec<Student>,
-    subjects: Vec<Subject>,
-    teachers: Vec<Teacher>,
-    #[serde(rename = "homeworksEnabled")]
-    homeworks_enabled: bool,
-    #[serde(rename = "jeZUS")]
-    art_school: bool,
+    pub classes: Vec<Class>,
+    pub classrooms: Vec<Classroom>,
+    pub parents: Vec<Parent>,
+    pub plans: Vec<Plan>,
+    pub students: Vec<Student>,
+    pub subjects: Vec<Subject>,
+    pub teachers: Vec<Teacher>,
+    pub homeworks_enabled: bool,
+    pub art_school: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Class {
-    #[serde(rename = "classroomid")]
-    classroom_id: i32,
-    grade: i32,
-    id: i32,
-    name: String,
-    #[serde(rename = "short")]
-    name_short: String,
-    #[serde(rename = "teacherid")]
-    teacher_id: i32,
-    #[serde(rename = "teacher2id")]
-    teacher2_id: i32,
+    pub classroom_id: i32,
+    pub grade: i32,
+    pub id: i32,
+    pub name: String,
+    pub name_short: String,
+    pub teacher_id: i32,
+    pub teacher2_id: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Classroom {
-    id: i32,
-    name: String,
-    #[serde(rename = "short")]
-    name_short: String,
+    pub id: i32,
+    pub name: String,
+    pub name_short: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Parent {
-    #[serde(rename = "firstname")]
-    first_name: String,
-    #[serde(rename = "lastname")]
-    last_name: String,
-    gender: Gender,
-    id: i32,
+    pub first_name: String,
+    pub last_name: String,
+    pub gender: Gender,
+    pub id: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Plan {
-    #[serde(rename = "planid")]
-    plan_id: i32,
-    #[serde(rename = "nazovPlanu")]
-    name: String,
-    #[serde(rename = "predmetid")]
-    subject_id: i32,
-    #[serde(rename = "ucitelids")]
-    teachers: Vec<i32>,
-    #[serde(rename = "triedy")]
-    class_ids: Vec<i32>,
-    students: Vec<i32>,
+    pub plan_id: i32,
+    pub name: String,
+    pub subject_id: i32,
+    pub teachers: Vec<i32>,
+    pub class_ids: Vec<i32>,
+    pub students: Vec<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Student {
-    #[serde(rename = "classid")]
-    class_id: i32,
-    #[serde(rename = "firstname")]
-    first_name: String,
-    #[serde(rename = "lastname")]
-    last_name: String,
-    id: i32,
-    parents: Vec<i32>,
-    gender: Gender,
-    #[serde(rename = "datefrom")]
-    since: String,
-    #[serde(rename = "numberinclass")]
-    class_position: i32,
+    pub class_id: i32,
+    pub first_name: String,
+    pub last_name: String,
+    pub id: i32,
+    pub parents: Vec<i32>,
+    pub gender: Gender,
+    pub since: String,
+    pub class_position: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subject {
-    id: i32,
-    name: String,
-    #[serde(rename = "short")]
-    name_short: String,
+    pub id: i32,
+    pub name: String,
+    pub name_short: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Teacher {
-    #[serde(rename = "firstname")]
-    first_name: String,
-    #[serde(rename = "lastname")]
-    last_name: String,
-    gender: Gender,
-    id: i32,
-    #[serde(rename = "short")]
-    short_name: String,
-    #[serde(rename = "datefrom")]
-    since: String,
-    #[serde(rename = "classroomid")]
-    classroom_id: i32,
+    pub first_name: String,
+    pub last_name: String,
+    pub gender: Gender,
+    pub id: i32,
+    pub short_name: String,
+    pub since: String,
+    pub classroom_id: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DayPlan {
-    date: String,
-    //plans: Vec<Plan>,
+    pub date: String,
+    pub lessons: Vec<Lesson>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ringing {
-    id: i32,
-    start: String,
-    end: String,
+    pub id: i32,
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Lesson {
+    pub subject_id: i32,
+    pub plan_id: i32,
+    pub period: i32,
 }

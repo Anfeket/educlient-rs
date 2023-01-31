@@ -127,6 +127,8 @@ impl Educlient {
                 "F" => serde_json::Value::from("Female"),
                 _ => todo!()
             };
+            i["first_name"] = i["firstname"].clone();
+            i["last_name"] = i["lastname"].clone();
             i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
         }
         
@@ -142,23 +144,29 @@ impl Educlient {
             }
             i["parents"] = serde_json::Value::Array(parents.into_iter().map(|x| serde_json::Value::Number(x.into())).collect());
 
-            i["classid"] = serde_json::Value::Number(i["classid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["class_id"] = serde_json::Value::Number(i["classid"].as_str().unwrap().parse::<i64>().unwrap().into());
             i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-            i["numberinclass"] = serde_json::Value::Number(i["numberinclass"].as_str().unwrap().parse::<i64>().unwrap().into());
-
-            
+            i["class_position"] = serde_json::Value::Number(i["numberinclass"].as_str().unwrap().parse::<i64>().unwrap().into());
             i["gender"] = match i["gender"].as_str().unwrap() {
                 "M" => serde_json::Value::from("Male"),
                 "F" => serde_json::Value::from("Female"),
                 _ => return Err(Error::ParseError),
             };
+            i["first_name"] = i["firstname"].clone();
+            i["last_name"] = i["lastname"].clone();
+            i["since"] = i["datefrom"].clone();
         }
 
         for i in data["dbi"]["subjects"].as_object_mut().unwrap().values_mut() {
             i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["name_short"] = i["short"].clone();
         }
         
         for i in data["dbi"]["teachers"].as_object_mut().unwrap().values_mut() {
+            i["first_name"] = i["firstname"].clone();
+            i["last_name"] = i["lastname"].clone();
+            i["short_name"] = i["short"].clone();
+            i["since"] = i["datefrom"].clone();
             i["gender"] = match i["gender"].as_str().unwrap() {
                 "M" => serde_json::Value::from("Male"),
                 "F" => serde_json::Value::from("Female"),
@@ -166,9 +174,9 @@ impl Educlient {
             };
             i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
             if i["classroomid"] != "" {
-                i["classroomid"] = serde_json::Value::Number(i["classroomid"].as_str().unwrap().parse::<i64>().unwrap().into());
+                i["classroom_id"] = serde_json::Value::Number(i["classroomid"].as_str().unwrap().parse::<i64>().unwrap().into());
             } else {
-                i["classroomid"] = serde_json::Value::Number(0.into());
+                i["classroom_id"] = serde_json::Value::Number(0.into());
             }
         }
         
@@ -177,7 +185,7 @@ impl Educlient {
             for j in i["ucitelids"].as_array().unwrap() {
                 ids.push(serde_json::Value::Number(j.as_str().unwrap().parse::<i64>().unwrap().into()));
             }
-            i["ucitelids"] = serde_json::Value::Array(ids);
+            i["teachers"] = serde_json::Value::Array(ids);
             let mut ids = Vec::new();
             for j in i["students"].as_array().unwrap() {
                 if j.is_i64() {
@@ -187,19 +195,24 @@ impl Educlient {
                 ids.push(serde_json::Value::Number(j.as_str().unwrap().parse::<i64>().unwrap().into()));
             }
             i["students"] = serde_json::Value::Array(ids);
-            i["planid"] = serde_json::Value::Number(i["planid"].as_str().unwrap().parse::<i64>().unwrap().into());
-            i["predmetid"] = serde_json::Value::Number(i["predmetid"].as_str().unwrap().parse::<i64>().unwrap().into());
-            for y in i["triedy"].as_array_mut().unwrap() {
+            i["plan_id"] = serde_json::Value::Number(i["planid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["subject_id"] = serde_json::Value::Number(i["predmetid"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["class_ids"] = serde_json::Value::Array(Vec::new());
+            for y in i["triedy"].as_array().unwrap().clone() {
                 if y.is_string() {
-                    *y = serde_json::Value::Number(y.as_str().unwrap().parse::<i64>().unwrap().into());
+                    i["class_ids"].as_array_mut().unwrap().push(serde_json::Value::Number(y.as_str().unwrap().parse::<i64>().unwrap().into()));
+                } else {
+                    i["class_ids"].as_array_mut().unwrap().push(y.clone());
                 }
             }
+            i["name"] = i["nazovPlanu"].clone();
         }
 
         for i in data["dbi"]["classrooms"].as_object_mut().unwrap().values_mut() {
             i["id"] = serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
+            i["name_short"] = i["short"].clone();
         }
-
+        
         for i in data["dbi"]["classes"].as_object_mut().unwrap().values_mut() {
             for y in ["classroomid", "grade", "id", "teacherid", "teacher2id"] {
                 if i[y].as_str().unwrap() == "" {
@@ -208,6 +221,10 @@ impl Educlient {
                 }
                 i[y] = serde_json::Value::Number(i[y].as_str().unwrap().parse::<i64>().unwrap().into());
             }
+            i["classroom_id"] = i["classroomid"].clone();
+            i["name_short"] = i["short"].clone();
+            i["teacher_id"] = i["teacherid"].clone();
+            i["teacher2_id"] = i["teacher2id"].clone();
         }
         
         for i in ["classes", "classrooms", "plans", "students", "subjects", "teachers", "parents"].iter() {
@@ -222,7 +239,22 @@ impl Educlient {
         for i in data["dp"]["dates"].as_object().unwrap() {
             let mut dayplan = serde_json::json!({});
             dayplan["date"] = serde_json::Value::String(i.0.clone());
-            dayplan["plans"] = serde_json::Value::Array(Vec::new());
+            dayplan["lessons"] = serde_json::Value::Array(Vec::new());
+            for y in i.1["plan"].as_array().unwrap() {
+                let mut y = y.clone();
+                if !y["subjectid"].as_str().is_none() {
+                    y["subject_id"] = y["subjectid"].as_str().unwrap().parse::<i64>().unwrap().into();
+                } else {
+                    y["subject_id"] = serde_json::Value::Number(0.into());
+                }
+                if !y["groupsubjectids"].as_array().unwrap().len() == 0 {
+                    y["plan_id"] = serde_json::Value::Number(y["groupsubjectids"].as_array().unwrap().first().unwrap().as_str().unwrap().parse::<i64>().unwrap().into());
+                } else {
+                    y["plan_id"] = serde_json::Value::Number(0.into());
+                }
+                y["period"] = y["period"].as_str().unwrap().parse::<i64>().unwrap().into();
+                dayplan["lessons"].as_array_mut().unwrap().push(y.clone());
+            }
             dayplans.push(dayplan);
         }
         data["day_plans"] = serde_json::Value::Array(dayplans);
@@ -230,6 +262,15 @@ impl Educlient {
         data["userdata"] = data["userrow"].clone();
         data["nameday_today"] = data["meninyDnes"].clone();
         data["nameday_tomorrow"] = data["meninyZajtra"].clone();
+
+        data["userdata"]["class_id"] = data["userdata"]["TriedaID"].clone();
+        data["userdata"]["first_name"] = data["userdata"]["p_meno"].clone();
+        data["userdata"]["last_name"] = data["userdata"]["p_priezvisko"].clone();
+        data["userdata"]["mail"] = data["userdata"]["p_mail"].clone();
+        data["userdata"]["login"] = data["userdata"]["p_www_login"].clone();
+
+        data["dbi"]["homeworks_enabled"] = data["dbi"]["homeworksEnabled"].clone();
+        data["dbi"]["art_school"] = data["dbi"]["jeZUS"].clone();
         let data: edupage_data::Data = serde::Deserialize::deserialize(data).unwrap();
         Ok(data)
     }

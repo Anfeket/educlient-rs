@@ -12,21 +12,23 @@ fn main() {
     let domain = args[3].clone();
 
     // login
+    println!("Logging in");
     let mut client = Educlient::new(domain);
     let res = client.login(username, password);
     if res.is_err() {
         println!("Login failed");
         return;
     }
+    println!("Login successful");
 
+    println!("Deserializing data");
     let deserialize = client.deserialize();
     if deserialize.is_err() {
         println!("Failed to deserialize data");
         return;
     }
+    println!("Deserialization successful");
 
     let data = deserialize.unwrap();
-    //write to file
-    let file = std::fs::File::create("data.json").unwrap();
-    serde_json::to_writer_pretty(&file, &data).unwrap();
+    println!("{:?}", data.userdata);
 }
