@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::edupage_types::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Data {
