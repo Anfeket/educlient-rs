@@ -1,6 +1,7 @@
 pub mod edupage_data;
 pub mod edupage_types;
 
+use edupage_data::*;
 use edupage_types::*;
 use reqwest::blocking;
 use serde_json::Value;
@@ -27,7 +28,7 @@ impl Educlient {
         }
     }
 
-    pub fn login(&mut self, username: String, password: String) -> Result<&Educlient, Error> {
+    pub fn login(&mut self, username: String, password: String) -> Result<&Self, Error> {
         let url = format!("https://{}.edupage.org/login/edubarlogin.php", self.domain);
         let params = [("username", username), ("password", password)];
         let res = self.session.post(url).form(&params).send().unwrap();
@@ -73,314 +74,337 @@ impl Educlient {
         if !self.logged_in {
             return Err(Error::NotLoggedIn);
         }
-        let mut data = self.data.clone();
 
-        data["year"] = data["dp"]["year"].clone();
-
-        let user = match data["userid"]
+        if cfg!(debug_assertions) {
+            println!("Deserializing userdata");
+        }
+        let (id, user_type) = if let Some(id) = self.data["userrow"]["UcitelID"].as_str() {
+            let id = id.parse::<i32>().unwrap();
+            let user_type = AccountType::Teacher;
+            (id, user_type)
+        } else if let Some(id) = self.data["userrow"]["StudentID"].as_str() {
+            let id = id.parse::<i32>().unwrap();
+            let user_type = AccountType::Student;
+            (id, user_type)
+        } else if let Some(id) = self.data["userrow"]["RodicID"].as_str() {
+            let id = id.parse::<i32>().unwrap();
+            let user_type = AccountType::Parent;
+            (id, user_type)
+        } else {
+            return Err(Error::ParseError);
+        };
+        let class_id = if let Some(id) = self.data["userrow"]["TriedaID"].as_str() {
+            id.parse::<i32>().unwrap()
+        } else {
+            0
+        };
+        let first_name = self.data["userrow"]["p_meno"].as_str().unwrap().to_string();
+        let last_name = self.data["userrow"]["p_priezvisko"]
             .as_str()
             .unwrap()
-            .chars()
-            .next()
-            .unwrap()
-            .to_string()
-            .as_str()
-        {
-            "S" => AccountType::Student,
-            "R" => AccountType::Parent,
-            "U" => AccountType::Teacher,
+            .to_string();
+        let mail = self.data["userrow"]["p_mail"].as_str().unwrap().to_string();
+        let gender = match self.data["userrow"]["p_pohlavie"].as_str().unwrap() {
+            "1" => Gender::Male,
+            "2" => Gender::Female,
             _ => return Err(Error::ParseError),
         };
-        data["userrow"]["user_type"] = serde_json::Value::from(match user {
-            AccountType::Student => "Student",
-            AccountType::Parent => "Parent",
-            AccountType::Teacher => "Teacher",
-        });
+        let login = self.data["userrow"]["p_www_login"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let userdata = User {
+            id,
+            class_id,
+            user_type,
+            first_name,
+            last_name,
+            mail,
+            gender,
+            login,
+        };
 
-        for i in data["zvonenia"].as_array_mut().unwrap() {
-            i["start"] = i["starttime"].clone();
-            i["end"] = i["endtime"].clone();
-            i["id"] = serde_json::Value::from(
-                i["id"]
+        if cfg!(debug_assertions) {
+            println!("Deserializing ringing");
+        }
+        let mut ringing: Vec<Ringing> = Vec::new();
+        for ring in self.data["zvonenia"].as_array().unwrap() {
+            ringing.push(Ringing {
+                id: ring["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                start: ring["starttime"].as_str().unwrap().to_string(),
+                end: ring["endtime"].as_str().unwrap().to_string(),
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing year");
+        }
+        let year = self.data["dp"]["year"].as_i64().unwrap() as i32;
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing namedays");
+        }
+        let nameday_today = self.data["meninyDnes"].as_str().unwrap().to_string();
+        let nameday_tomorrow = self.data["meninyZajtra"].as_str().unwrap().to_string();
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi");
+        }
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/classes");
+        }
+        let mut classes: Vec<Class> = Vec::new();
+        for class in self.data["dbi"]["classes"].as_object().unwrap().values() {
+            classes.push(Class {
+                classroom_id: if let Some(id) = class["classroomid"].as_str() {
+                    if !id.is_empty() {
+                        id.parse::<i32>().unwrap()
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                },
+                grade: class["grade"].as_str().unwrap().parse::<i32>().unwrap(),
+                id: class["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                name: class["name"].as_str().unwrap().to_string(),
+                name_short: class["short"].as_str().unwrap().to_string(),
+                teacher_id: class["teacherid"].as_str().unwrap().parse::<i32>().unwrap(),
+                teacher2_id: if let Some(id) = class["teacher2id"].as_str() {
+                    if !id.is_empty() {
+                        id.parse::<i32>().unwrap()
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                },
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/classrooms");
+        }
+        let mut classrooms: Vec<Classroom> = Vec::new();
+        for classroom in self.data["dbi"]["classrooms"].as_object().unwrap().values() {
+            classrooms.push(Classroom {
+                id: classroom["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                name: classroom["name"].as_str().unwrap().to_string(),
+                name_short: classroom["short"].as_str().unwrap().to_string(),
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/parents");
+        }
+        let mut parents: Vec<Parent> = Vec::new();
+        for parent in self.data["dbi"]["parents"].as_object().unwrap().values() {
+            parents.push(Parent {
+                first_name: parent["firstname"].as_str().unwrap().to_string(),
+                last_name: parent["lastname"].as_str().unwrap().to_string(),
+                gender: match parent["gender"].as_str().unwrap() {
+                    "M" => Gender::Male,
+                    "F" => Gender::Female,
+                    _ => return Err(Error::ParseError),
+                },
+                id: parent["id"].as_str().unwrap().parse::<i32>().unwrap(),
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/plans");
+        }
+        let mut plans: Vec<Plan> = Vec::new();
+        for plan in self.data["dbi"]["plans"].as_object().unwrap().values() {
+            let mut class_ids: Vec<i32> = Vec::new();
+            for class in plan["triedy"].as_array().unwrap() {
+                if class.is_string() {
+                    class_ids.push(class.as_str().unwrap().parse::<i32>().unwrap());
+                    continue;
+                }
+                if class.is_i64() {
+                    class_ids.push(class.as_i64().unwrap() as i32);
+                    continue;
+                }
+                return Err(Error::ParseError);
+            }
+            let mut students: Vec<i32> = Vec::new();
+            for student in plan["students"].as_array().unwrap() {
+                if student.is_string() {
+                    students.push(student.as_str().unwrap().parse::<i32>().unwrap());
+                    continue;
+                }
+                if student.is_i64() {
+                    students.push(student.as_i64().unwrap() as i32);
+                    continue;
+                }
+                if student.is_null() {
+                    break;
+                }
+                return Err(Error::ParseError);
+            }
+            plans.push(Plan {
+                plan_id: plan["planid"].as_str().unwrap().parse::<i32>().unwrap(),
+                name: plan["predmetMeno"].as_str().unwrap().to_string(),
+                subject_id: plan["predmetid"].as_str().unwrap().parse::<i32>().unwrap(),
+                teachers: plan["ucitelids"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|x| x.as_str().unwrap().parse::<i32>().unwrap())
+                    .collect(),
+                class_ids,
+                students,
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/students");
+        }
+        let mut students: Vec<Student> = Vec::new();
+        for student in self.data["dbi"]["students"].as_object().unwrap().values() {
+            let mut parents = Vec::new();
+            for i in ["parent1id", "parent2id", "parent3id"].iter() {
+                if let Some(id) = student[i].as_str() {
+                    if !id.is_empty() {
+                        parents.push(id.parse::<i32>().unwrap());
+                    }
+                }
+            }
+            students.push(Student {
+                class_id: student["classid"].as_str().unwrap().parse::<i32>().unwrap(),
+                first_name: student["firstname"].as_str().unwrap().to_string(),
+                last_name: student["lastname"].as_str().unwrap().to_string(),
+                id: student["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                parents,
+                gender: match student["gender"].as_str().unwrap() {
+                    "M" => Gender::Male,
+                    "F" => Gender::Female,
+                    _ => return Err(Error::ParseError),
+                },
+                since: student["datefrom"].as_str().unwrap().to_string(),
+                class_position: student["numberinclass"]
                     .as_str()
                     .unwrap()
-                    .replace("zvonenie", "")
                     .parse::<i32>()
                     .unwrap(),
-            );
+            })
         }
-        data["ringing"] = data["zvonenia"].clone();
 
-        let id = match user {
-            AccountType::Student => data["userid"].as_str().unwrap().replace("Student", ""),
-            AccountType::Parent => data["userid"].as_str().unwrap().replace("Rodic", ""),
-            AccountType::Teacher => data["userid"].as_str().unwrap().replace("Ucitel", ""),
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/subjects");
+        }
+        let mut subjects: Vec<Subject> = Vec::new();
+        for subject in self.data["dbi"]["subjects"].as_object().unwrap().values() {
+            subjects.push(Subject {
+                id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                name: subject["name"].as_str().unwrap().to_string(),
+                name_short: subject["short"].as_str().unwrap().to_string(),
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/teachers");
+        }
+        let mut teachers: Vec<Teacher> = Vec::new();
+        for teacher in self.data["dbi"]["teachers"].as_object().unwrap().values() {
+            teachers.push(Teacher {
+                first_name: teacher["firstname"].as_str().unwrap().to_string(),
+                last_name: teacher["lastname"].as_str().unwrap().to_string(),
+                gender: match teacher["gender"].as_str().unwrap() {
+                    "M" => Gender::Male,
+                    "F" => Gender::Female,
+                    _ => return Err(Error::ParseError),
+                },
+                id: teacher["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                short_name: teacher["short"].as_str().unwrap().to_string(),
+                since: teacher["datefrom"].as_str().unwrap().to_string(),
+                classroom_id: if let Some(id) = teacher["classroomid"].as_str() {
+                    if !id.is_empty() {
+                        id.parse::<i32>().unwrap()
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                },
+            })
+        }
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/homeworks_enabled");
+        }
+        let homeworks_enabled = self.data["dbi"]["homeworksEnabled"].as_bool().unwrap();
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/art_school");
+        }
+        let art_school = self.data["dbi"]["jeZUS"].as_bool().unwrap();
+
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/dayplan");
+        }
+        if cfg!(debug_assertions) {
+            println!("Deserializing dbi/dayplan/lessons");
+        }
+        let mut day_plans: Vec<DayPlan> = Vec::new();
+        for date in self.data["dp"]["dates"].as_object().unwrap() {
+            let mut lessons = Vec::new();
+            for lesson in date.1["plan"].as_array().unwrap() {
+                if lesson["periodorbreak"].as_str().unwrap() == "ZZZ" {
+                    continue;
+                }
+                lessons.push(Lesson {
+                    subject_id: if let Some(id) = lesson["subjectid"].as_str() {
+                        if !id.is_empty() {
+                            id.parse::<i32>().unwrap()
+                        } else {
+                            0
+                        }
+                    } else {
+                        0
+                    },
+                    plan_id: if let Some(id) = lesson["groupsubjectids"].as_array().unwrap().first()
+                    {
+                        if id.is_null() {
+                            0
+                        } else {
+                            id.as_str().unwrap().parse::<i32>().unwrap()
+                        }
+                    } else {
+                        0
+                    },
+                    period: lesson["period"].as_str().unwrap().parse::<i32>().unwrap(),
+                })
+            }
+            day_plans.push(DayPlan {
+                date: date.0.to_string(),
+                lessons,
+            })
+        }
+        let dbi = DBI {
+            students,
+            teachers,
+            subjects,
+            plans,
+            homeworks_enabled,
+            art_school,
+            classes,
+            classrooms,
+            parents,
         };
-        let id = id.parse::<i32>().unwrap();
-        data["userrow"]["id"] = serde_json::Value::from(id);
-        data["userrow"]["gender"] = match data["userrow"]["p_pohlavie"].as_str().unwrap() {
-            "1" => serde_json::Value::from("Male"),
-            "2" => serde_json::Value::from("Female"),
-            _ => return Err(Error::ParseError),
-        };
-
-        if !data["userrow"]["TriedaID"].is_null() {
-            data["userrow"]["TriedaID"] = serde_json::Value::Number(
-                data["userrow"]["TriedaID"]
-                    .as_str()
-                    .unwrap()
-                    .parse::<i64>()
-                    .unwrap()
-                    .into(),
-            );
-        } else {
-            data["userrow"]["TriedaID"] = serde_json::Value::Number(0.into());
+        if cfg!(debug_assertions) {
+            println!("Finished deserializing");
         }
 
-        for i in data["dbi"]["parents"].as_object_mut().unwrap().values_mut() {
-            i["gender"] = match i["gender"].as_str().unwrap() {
-                "M" => serde_json::Value::from("Male"),
-                "F" => serde_json::Value::from("Female"),
-                _ => todo!(),
-            };
-            i["first_name"] = i["firstname"].clone();
-            i["last_name"] = i["lastname"].clone();
-            i["id"] =
-                serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-        }
-
-        for i in data["dbi"]["students"]
-            .as_object_mut()
-            .unwrap()
-            .values_mut()
-        {
-            let mut parents: Vec<i64> = Vec::new();
-            for y in 0..3 {
-                let parent = format!("parent{}id", y + 1);
-                if i[&parent].as_str().unwrap() == "" {
-                    parents.push(0);
-                    continue;
-                }
-                parents.push(i[&parent].as_str().unwrap().parse::<i64>().unwrap());
-            }
-            i["parents"] = serde_json::Value::Array(
-                parents
-                    .into_iter()
-                    .map(|x| serde_json::Value::Number(x.into()))
-                    .collect(),
-            );
-
-            i["class_id"] = serde_json::Value::Number(
-                i["classid"]
-                    .as_str()
-                    .unwrap()
-                    .parse::<i64>()
-                    .unwrap()
-                    .into(),
-            );
-            i["id"] =
-                serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-            i["class_position"] = serde_json::Value::Number(
-                i["numberinclass"]
-                    .as_str()
-                    .unwrap()
-                    .parse::<i64>()
-                    .unwrap()
-                    .into(),
-            );
-            i["gender"] = match i["gender"].as_str().unwrap() {
-                "M" => serde_json::Value::from("Male"),
-                "F" => serde_json::Value::from("Female"),
-                _ => return Err(Error::ParseError),
-            };
-            i["first_name"] = i["firstname"].clone();
-            i["last_name"] = i["lastname"].clone();
-            i["since"] = i["datefrom"].clone();
-        }
-
-        for i in data["dbi"]["subjects"]
-            .as_object_mut()
-            .unwrap()
-            .values_mut()
-        {
-            i["id"] =
-                serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-            i["name_short"] = i["short"].clone();
-        }
-
-        for i in data["dbi"]["teachers"]
-            .as_object_mut()
-            .unwrap()
-            .values_mut()
-        {
-            i["first_name"] = i["firstname"].clone();
-            i["last_name"] = i["lastname"].clone();
-            i["short_name"] = i["short"].clone();
-            i["since"] = i["datefrom"].clone();
-            i["gender"] = match i["gender"].as_str().unwrap() {
-                "M" => serde_json::Value::from("Male"),
-                "F" => serde_json::Value::from("Female"),
-                _ => todo!(),
-            };
-            i["id"] =
-                serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-            if i["classroomid"] != "" {
-                i["classroom_id"] = serde_json::Value::Number(
-                    i["classroomid"]
-                        .as_str()
-                        .unwrap()
-                        .parse::<i64>()
-                        .unwrap()
-                        .into(),
-                );
-            } else {
-                i["classroom_id"] = serde_json::Value::Number(0.into());
-            }
-        }
-
-        for i in data["dbi"]["plans"].as_object_mut().unwrap().values_mut() {
-            let mut ids = Vec::new();
-            for j in i["ucitelids"].as_array().unwrap() {
-                ids.push(serde_json::Value::Number(
-                    j.as_str().unwrap().parse::<i64>().unwrap().into(),
-                ));
-            }
-            i["teachers"] = serde_json::Value::Array(ids);
-            let mut ids = Vec::new();
-            for j in i["students"].as_array().unwrap() {
-                if j.is_i64() {
-                    ids.push(j.clone());
-                    continue;
-                }
-                ids.push(serde_json::Value::Number(
-                    j.as_str().unwrap().parse::<i64>().unwrap().into(),
-                ));
-            }
-            i["students"] = serde_json::Value::Array(ids);
-            i["plan_id"] = serde_json::Value::Number(
-                i["planid"].as_str().unwrap().parse::<i64>().unwrap().into(),
-            );
-            i["subject_id"] = serde_json::Value::Number(
-                i["predmetid"]
-                    .as_str()
-                    .unwrap()
-                    .parse::<i64>()
-                    .unwrap()
-                    .into(),
-            );
-            i["class_ids"] = serde_json::Value::Array(Vec::new());
-            for y in i["triedy"].as_array().unwrap().clone() {
-                if y.is_string() {
-                    i["class_ids"]
-                        .as_array_mut()
-                        .unwrap()
-                        .push(serde_json::Value::Number(
-                            y.as_str().unwrap().parse::<i64>().unwrap().into(),
-                        ));
-                } else {
-                    i["class_ids"].as_array_mut().unwrap().push(y.clone());
-                }
-            }
-            i["name"] = i["nazovPlanu"].clone();
-        }
-
-        for i in data["dbi"]["classrooms"]
-            .as_object_mut()
-            .unwrap()
-            .values_mut()
-        {
-            i["id"] =
-                serde_json::Value::Number(i["id"].as_str().unwrap().parse::<i64>().unwrap().into());
-            i["name_short"] = i["short"].clone();
-        }
-
-        for i in data["dbi"]["classes"].as_object_mut().unwrap().values_mut() {
-            for y in ["classroomid", "grade", "id", "teacherid", "teacher2id"] {
-                if i[y].as_str().unwrap() == "" {
-                    i[y] = serde_json::Value::Number(0.into());
-                    continue;
-                }
-                i[y] = serde_json::Value::Number(
-                    i[y].as_str().unwrap().parse::<i64>().unwrap().into(),
-                );
-            }
-            i["classroom_id"] = i["classroomid"].clone();
-            i["name_short"] = i["short"].clone();
-            i["teacher_id"] = i["teacherid"].clone();
-            i["teacher2_id"] = i["teacher2id"].clone();
-        }
-
-        for i in [
-            "classes",
-            "classrooms",
-            "plans",
-            "students",
-            "subjects",
-            "teachers",
-            "parents",
-        ]
-        .iter()
-        {
-            let mut arr = Vec::new();
-            for j in data["dbi"][i].as_object().unwrap().values() {
-                arr.push(j.clone());
-            }
-            data["dbi"][i] = serde_json::Value::Array(arr);
-        }
-
-        let mut dayplans = Vec::new();
-        for i in data["dp"]["dates"].as_object().unwrap() {
-            let mut dayplan = serde_json::json!({});
-            dayplan["date"] = serde_json::Value::String(i.0.clone());
-            dayplan["lessons"] = serde_json::Value::Array(Vec::new());
-            for y in i.1["plan"].as_array().unwrap() {
-                let mut y = y.clone();
-                if y["subjectid"].as_str().is_some() {
-                    y["subject_id"] = y["subjectid"]
-                        .as_str()
-                        .unwrap()
-                        .parse::<i64>()
-                        .unwrap()
-                        .into();
-                } else {
-                    y["subject_id"] = serde_json::Value::Number(0.into());
-                }
-                if !y["groupsubjectids"].as_array().unwrap().len() == 0 {
-                    y["plan_id"] = serde_json::Value::Number(
-                        y["groupsubjectids"]
-                            .as_array()
-                            .unwrap()
-                            .first()
-                            .unwrap()
-                            .as_str()
-                            .unwrap()
-                            .parse::<i64>()
-                            .unwrap()
-                            .into(),
-                    );
-                } else {
-                    y["plan_id"] = serde_json::Value::Number(0.into());
-                }
-                y["period"] = y["period"].as_str().unwrap().parse::<i64>().unwrap().into();
-                dayplan["lessons"].as_array_mut().unwrap().push(y.clone());
-            }
-            dayplans.push(dayplan);
-        }
-        data["day_plans"] = serde_json::Value::Array(dayplans);
-
-        data["userdata"] = data["userrow"].clone();
-        data["nameday_today"] = data["meninyDnes"].clone();
-        data["nameday_tomorrow"] = data["meninyZajtra"].clone();
-
-        data["userdata"]["class_id"] = data["userdata"]["TriedaID"].clone();
-        data["userdata"]["first_name"] = data["userdata"]["p_meno"].clone();
-        data["userdata"]["last_name"] = data["userdata"]["p_priezvisko"].clone();
-        data["userdata"]["mail"] = data["userdata"]["p_mail"].clone();
-        data["userdata"]["login"] = data["userdata"]["p_www_login"].clone();
-
-        data["dbi"]["homeworks_enabled"] = data["dbi"]["homeworksEnabled"].clone();
-        data["dbi"]["art_school"] = data["dbi"]["jeZUS"].clone();
-        let data: edupage_data::Data = serde::Deserialize::deserialize(data).unwrap();
-        Ok(data)
+        Ok(Data {
+            ringing,
+            userdata,
+            dbi,
+            nameday_today,
+            nameday_tomorrow,
+            day_plans,
+            year,
+        })
     }
 }

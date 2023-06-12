@@ -1,7 +1,6 @@
 use crate::edupage_types::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Data {
     pub ringing: Vec<Ringing>,
     pub userdata: User,
@@ -12,7 +11,7 @@ pub struct Data {
     pub year: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct User {
     pub id: i32,
     pub class_id: i32,
@@ -24,7 +23,7 @@ pub struct User {
     pub login: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DBI {
     pub classes: Vec<Class>,
     pub classrooms: Vec<Classroom>,
@@ -37,7 +36,7 @@ pub struct DBI {
     pub art_school: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Class {
     pub classroom_id: i32,
     pub grade: i32,
@@ -48,14 +47,14 @@ pub struct Class {
     pub teacher2_id: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Classroom {
     pub id: i32,
     pub name: String,
     pub name_short: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Parent {
     pub first_name: String,
     pub last_name: String,
@@ -63,7 +62,7 @@ pub struct Parent {
     pub id: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Plan {
     pub plan_id: i32,
     pub name: String,
@@ -73,7 +72,7 @@ pub struct Plan {
     pub students: Vec<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Student {
     pub class_id: i32,
     pub first_name: String,
@@ -85,14 +84,14 @@ pub struct Student {
     pub class_position: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Subject {
     pub id: i32,
     pub name: String,
     pub name_short: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Teacher {
     pub first_name: String,
     pub last_name: String,
@@ -103,20 +102,20 @@ pub struct Teacher {
     pub classroom_id: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DayPlan {
     pub date: String,
     pub lessons: Vec<Lesson>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Ringing {
     pub id: i32,
     pub start: String,
     pub end: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Lesson {
     pub subject_id: i32,
     pub plan_id: i32,
