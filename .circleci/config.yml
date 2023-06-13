@@ -8,7 +8,7 @@ version: 2.1
 jobs:
   rust-build-win:
     docker:
-      - image: cimg/rust:1.64.0
+      - image: cimg/rust:1.70.0
     steps:
       - checkout
       - run:
