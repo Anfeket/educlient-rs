@@ -6,11 +6,11 @@ use edupage_types::*;
 use reqwest::blocking;
 use serde_json::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Educlient {
     pub logged_in: bool,
     pub domain: String,
-    pub data: serde_json::Value,
+    pub json: serde_json::Value,
     pub session: blocking::Client,
 }
 
@@ -23,7 +23,7 @@ impl Educlient {
         Educlient {
             logged_in: false,
             domain,
-            data: serde_json::Value::Null,
+            json: serde_json::Value::Null,
             session,
         }
     }
@@ -46,7 +46,7 @@ impl Educlient {
             return Err(Error::NoResponse);
         }
         self.logged_in = true;
-        self.data = data;
+        self.json = data;
         Ok(self)
     }
 
@@ -70,46 +70,50 @@ impl Educlient {
         Ok(json.unwrap())
     }
 
-    pub fn deserialize(&self) -> Result<edupage_data::Data, Error> {
-        if !self.logged_in {
-            return Err(Error::NotLoggedIn);
+    pub fn deserialize(&self) -> Result<Data, Error> {
+        if self.json.is_null() {
+            if self.logged_in {
+                return Err(Error::NotFound);
+            } else {
+                return Err(Error::NotLoggedIn);
+            }
         }
 
         if cfg!(debug_assertions) {
             println!("Deserializing userdata");
         }
-        let (id, user_type) = if let Some(id) = self.data["userrow"]["UcitelID"].as_str() {
+        let (id, user_type) = if let Some(id) = self.json["userrow"]["UcitelID"].as_str() {
             let id = id.parse::<i32>().unwrap();
             let user_type = AccountType::Teacher;
             (id, user_type)
-        } else if let Some(id) = self.data["userrow"]["StudentID"].as_str() {
+        } else if let Some(id) = self.json["userrow"]["StudentID"].as_str() {
             let id = id.parse::<i32>().unwrap();
             let user_type = AccountType::Student;
             (id, user_type)
-        } else if let Some(id) = self.data["userrow"]["RodicID"].as_str() {
+        } else if let Some(id) = self.json["userrow"]["RodicID"].as_str() {
             let id = id.parse::<i32>().unwrap();
             let user_type = AccountType::Parent;
             (id, user_type)
         } else {
             return Err(Error::ParseError);
         };
-        let class_id = if let Some(id) = self.data["userrow"]["TriedaID"].as_str() {
-            id.parse::<i32>().unwrap()
+        let class_id = if let Some(id) = self.json["userrow"]["TriedaID"].as_str() {
+            Some(id.parse::<i32>().unwrap())
         } else {
-            0
+            None
         };
-        let first_name = self.data["userrow"]["p_meno"].as_str().unwrap().to_string();
-        let last_name = self.data["userrow"]["p_priezvisko"]
+        let first_name = self.json["userrow"]["p_meno"].as_str().unwrap().to_string();
+        let last_name = self.json["userrow"]["p_priezvisko"]
             .as_str()
             .unwrap()
             .to_string();
-        let mail = self.data["userrow"]["p_mail"].as_str().unwrap().to_string();
-        let gender = match self.data["userrow"]["p_pohlavie"].as_str().unwrap() {
+        let mail = self.json["userrow"]["p_mail"].as_str().unwrap().to_string();
+        let gender = match self.json["userrow"]["p_pohlavie"].as_str().unwrap() {
             "1" => Gender::Male,
             "2" => Gender::Female,
             _ => return Err(Error::ParseError),
         };
-        let login = self.data["userrow"]["p_www_login"]
+        let login = self.json["userrow"]["p_www_login"]
             .as_str()
             .unwrap()
             .to_string();
@@ -128,7 +132,7 @@ impl Educlient {
             println!("Deserializing ringing");
         }
         let mut ringing: Vec<Ringing> = Vec::new();
-        for ring in self.data["zvonenia"].as_array().unwrap() {
+        for ring in self.json["zvonenia"].as_array().unwrap() {
             ringing.push(Ringing {
                 id: ring["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 start: ring["starttime"].as_str().unwrap().to_string(),
@@ -139,13 +143,13 @@ impl Educlient {
         if cfg!(debug_assertions) {
             println!("Deserializing year");
         }
-        let year = self.data["dp"]["year"].as_i64().unwrap() as i32;
+        let year = self.json["dp"]["year"].as_i64().unwrap() as i32;
 
         if cfg!(debug_assertions) {
             println!("Deserializing namedays");
         }
-        let nameday_today = self.data["meninyDnes"].as_str().unwrap().to_string();
-        let nameday_tomorrow = self.data["meninyZajtra"].as_str().unwrap().to_string();
+        let nameday_today = self.json["meninyDnes"].as_str().unwrap().to_string();
+        let nameday_tomorrow = self.json["meninyZajtra"].as_str().unwrap().to_string();
 
         if cfg!(debug_assertions) {
             println!("Deserializing dbi");
@@ -154,31 +158,33 @@ impl Educlient {
             println!("Deserializing dbi/classes");
         }
         let mut classes: Vec<Class> = Vec::new();
-        for class in self.data["dbi"]["classes"].as_object().unwrap().values() {
-            classes.push(Class {
-                classroom_id: if let Some(id) = class["classroomid"].as_str() {
-                    if !id.is_empty() {
-                        id.parse::<i32>().unwrap()
-                    } else {
-                        0
-                    }
+        for class in self.json["dbi"]["classes"].as_object().unwrap().values() {
+            let teacher2_id = if let Some(id) = class["teacher2id"].as_str() {
+                if !id.is_empty() {
+                    Some(id.parse::<i32>().unwrap())
                 } else {
-                    0
-                },
+                    None
+                }
+            } else {
+                None
+            };
+            let classroom_id = if let Some(id) = class["classroomid"].as_str() {
+                if !id.is_empty() {
+                    Some(id.parse::<i32>().unwrap())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            classes.push(Class {
+                classroom_id,
                 grade: class["grade"].as_str().unwrap().parse::<i32>().unwrap(),
                 id: class["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 name: class["name"].as_str().unwrap().to_string(),
                 name_short: class["short"].as_str().unwrap().to_string(),
-                teacher_id: class["teacherid"].as_str().unwrap().parse::<i32>().unwrap(),
-                teacher2_id: if let Some(id) = class["teacher2id"].as_str() {
-                    if !id.is_empty() {
-                        id.parse::<i32>().unwrap()
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                },
+                teacher_id: Some(class["teacherid"].as_str().unwrap().parse::<i32>().unwrap()),
+                teacher2_id
             })
         }
 
@@ -186,7 +192,7 @@ impl Educlient {
             println!("Deserializing dbi/classrooms");
         }
         let mut classrooms: Vec<Classroom> = Vec::new();
-        for classroom in self.data["dbi"]["classrooms"].as_object().unwrap().values() {
+        for classroom in self.json["dbi"]["classrooms"].as_object().unwrap().values() {
             classrooms.push(Classroom {
                 id: classroom["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 name: classroom["name"].as_str().unwrap().to_string(),
@@ -198,7 +204,7 @@ impl Educlient {
             println!("Deserializing dbi/parents");
         }
         let mut parents: Vec<Parent> = Vec::new();
-        for parent in self.data["dbi"]["parents"].as_object().unwrap().values() {
+        for parent in self.json["dbi"]["parents"].as_object().unwrap().values() {
             parents.push(Parent {
                 first_name: parent["firstname"].as_str().unwrap().to_string(),
                 last_name: parent["lastname"].as_str().unwrap().to_string(),
@@ -215,7 +221,7 @@ impl Educlient {
             println!("Deserializing dbi/plans");
         }
         let mut plans: Vec<Plan> = Vec::new();
-        for plan in self.data["dbi"]["plans"].as_object().unwrap().values() {
+        for plan in self.json["dbi"]["plans"].as_object().unwrap().values() {
             let mut class_ids: Vec<i32> = Vec::new();
             for class in plan["triedy"].as_array().unwrap() {
                 if class.is_string() {
@@ -262,7 +268,7 @@ impl Educlient {
             println!("Deserializing dbi/students");
         }
         let mut students: Vec<Student> = Vec::new();
-        for student in self.data["dbi"]["students"].as_object().unwrap().values() {
+        for student in self.json["dbi"]["students"].as_object().unwrap().values() {
             let mut parents = Vec::new();
             for i in ["parent1id", "parent2id", "parent3id"].iter() {
                 if let Some(id) = student[i].as_str() {
@@ -295,7 +301,7 @@ impl Educlient {
             println!("Deserializing dbi/subjects");
         }
         let mut subjects: Vec<Subject> = Vec::new();
-        for subject in self.data["dbi"]["subjects"].as_object().unwrap().values() {
+        for subject in self.json["dbi"]["subjects"].as_object().unwrap().values() {
             subjects.push(Subject {
                 id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 name: subject["name"].as_str().unwrap().to_string(),
@@ -307,7 +313,16 @@ impl Educlient {
             println!("Deserializing dbi/teachers");
         }
         let mut teachers: Vec<Teacher> = Vec::new();
-        for teacher in self.data["dbi"]["teachers"].as_object().unwrap().values() {
+        for teacher in self.json["dbi"]["teachers"].as_object().unwrap().values() {
+            let classroom_id = if let Some(id) = teacher["classroomid"].as_str() {
+                if !id.is_empty() {
+                    Some(id.parse::<i32>().unwrap())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
             teachers.push(Teacher {
                 first_name: teacher["firstname"].as_str().unwrap().to_string(),
                 last_name: teacher["lastname"].as_str().unwrap().to_string(),
@@ -319,27 +334,19 @@ impl Educlient {
                 id: teacher["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 short_name: teacher["short"].as_str().unwrap().to_string(),
                 since: teacher["datefrom"].as_str().unwrap().to_string(),
-                classroom_id: if let Some(id) = teacher["classroomid"].as_str() {
-                    if !id.is_empty() {
-                        id.parse::<i32>().unwrap()
-                    } else {
-                        0
-                    }
-                } else {
-                    0
-                },
+                classroom_id
             })
         }
 
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/homeworks_enabled");
         }
-        let homeworks_enabled = self.data["dbi"]["homeworksEnabled"].as_bool().unwrap();
+        let homeworks_enabled = self.json["dbi"]["homeworksEnabled"].as_bool().unwrap();
 
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/art_school");
         }
-        let art_school = self.data["dbi"]["jeZUS"].as_bool().unwrap();
+        let art_school = self.json["dbi"]["jeZUS"].as_bool().unwrap();
 
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/dayplan");
@@ -348,32 +355,34 @@ impl Educlient {
             println!("Deserializing dbi/dayplan/lessons");
         }
         let mut day_plans: Vec<DayPlan> = Vec::new();
-        for date in self.data["dp"]["dates"].as_object().unwrap() {
+        for date in self.json["dp"]["dates"].as_object().unwrap() {
             let mut lessons = Vec::new();
             for lesson in date.1["plan"].as_array().unwrap() {
                 if lesson["periodorbreak"].as_str().unwrap() == "ZZZ" {
                     continue;
                 }
+                let subject_id = if let Some(id) = lesson["subjectid"].as_str() {
+                    if !id.is_empty() {
+                        Some(id.parse::<i32>().unwrap())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let plan_id = if let Some(id) = lesson["groupsubjectids"].as_array().unwrap().first()
+                {
+                    if id.is_null() {
+                        None
+                    } else {
+                        Some(id.as_str().unwrap().parse::<i32>().unwrap())
+                    }
+                } else {
+                    None
+                };
                 lessons.push(Lesson {
-                    subject_id: if let Some(id) = lesson["subjectid"].as_str() {
-                        if !id.is_empty() {
-                            id.parse::<i32>().unwrap()
-                        } else {
-                            0
-                        }
-                    } else {
-                        0
-                    },
-                    plan_id: if let Some(id) = lesson["groupsubjectids"].as_array().unwrap().first()
-                    {
-                        if id.is_null() {
-                            0
-                        } else {
-                            id.as_str().unwrap().parse::<i32>().unwrap()
-                        }
-                    } else {
-                        0
-                    },
+                    subject_id,
+                    plan_id,
                     period: lesson["period"].as_str().unwrap().parse::<i32>().unwrap(),
                 })
             }
@@ -404,7 +413,7 @@ impl Educlient {
             nameday_today,
             nameday_tomorrow,
             day_plans,
-            year,
+            year
         })
     }
 }

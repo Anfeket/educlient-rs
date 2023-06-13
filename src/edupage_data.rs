@@ -14,7 +14,7 @@ pub struct Data {
 #[derive(Debug, Clone)]
 pub struct User {
     pub id: i32,
-    pub class_id: i32,
+    pub class_id: Option<i32>,
     pub user_type: AccountType,
     pub first_name: String,
     pub last_name: String,
@@ -38,13 +38,13 @@ pub struct DBI {
 
 #[derive(Debug, Clone)]
 pub struct Class {
-    pub classroom_id: i32,
+    pub classroom_id: Option<i32>,
     pub grade: i32,
     pub id: i32,
     pub name: String,
     pub name_short: String,
-    pub teacher_id: i32,
-    pub teacher2_id: i32,
+    pub teacher_id: Option<i32>,
+    pub teacher2_id: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -99,7 +99,7 @@ pub struct Teacher {
     pub id: i32,
     pub short_name: String,
     pub since: String,
-    pub classroom_id: i32,
+    pub classroom_id: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -117,7 +117,7 @@ pub struct Ringing {
 
 #[derive(Debug, Clone)]
 pub struct Lesson {
-    pub subject_id: i32,
-    pub plan_id: i32,
+    pub subject_id: Option<i32>,
+    pub plan_id: Option<i32>,
     pub period: i32,
 }
