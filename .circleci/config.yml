@@ -6,12 +6,6 @@ version: 2.1
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 
 jobs:
-  rust-test:
-    docker:
-      - image: cimg/rust:1.64.0
-    steps:
-      - checkout
-      - run: cargo --version
   rust-build-win:
     docker:
       - image: cimg/rust:1.64.0
@@ -23,9 +17,12 @@ jobs:
             sudo apt install mingw-w64
             rustup target add x86_64-pc-windows-gnu
             cargo build --release --target x86_64-pc-windows-gnu
-      - store_artifacts:
-          path: /home/circleci/project/target/x86_64-pc-windows-gnu/release/educlient.exe
-          destination: windows
+            mkdir -p arts/windows/
+            cp target/x86_64-pc-windows-gnu/release/educlient.exe arts/windows/educlient.exe
+      - persist_to_workspace:
+          root: arts
+          paths:
+            - windows
   rust-build-linux:
     docker:
       - image: cimg/rust:1.64.0
@@ -33,20 +30,39 @@ jobs:
       - checkout
       - run:
           name: Cargo release build
-          command: cargo build --release --target x86_64-unknown-linux-gnu
+          command: |
+            cargo build --release --target x86_64-unknown-linux-gnu
+            mkdir -p arts/linux/
+            cp target/x86_64-unknown-linux-gnu/release/educlient arts/linux/educlient
+      - persist_to_workspace:
+          root: arts
+          paths:
+            - linux
+  rust-artifacts:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - attach_workspace:
+          at: arts
+      - run:
+          name: test
+          command: |
+            mkdir arts/upload
+            cp arts/windows/educlient.exe arts/upload/educlient.exe
+            cp arts/linux/educlient arts/upload/educlient
       - store_artifacts:
-          path: /home/circleci/project/target/x86_64-unknown-linux-gnu/release/educlient
-          destination: linux
+          path: arts/upload
+          destination: artifacts
+
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
-  rust-build-workflow:
+  workflow:
     jobs:
-      - rust-test
-      - rust-build-win:
-          requires: 
-            - rust-test
-      - rust-build-linux:
+      - rust-build-win
+      - rust-build-linux
+      - rust-artifacts:
           requires:
-            - rust-test
+            - rust-build-win
+            - rust-build-linux
