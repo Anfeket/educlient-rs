@@ -3,6 +3,7 @@ pub mod edupage_types;
 
 use edupage_data::*;
 use edupage_types::*;
+use std::collections::HashMap;
 use reqwest::blocking;
 use serde_json::Value;
 
@@ -300,13 +301,13 @@ impl Educlient {
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/subjects");
         }
-        let mut subjects: Vec<Subject> = Vec::new();
+        let mut subjects: HashMap<i32, Subject> = HashMap::new();
         for subject in self.json["dbi"]["subjects"].as_object().unwrap().values() {
-            subjects.push(Subject {
-                id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
+            let id = subject["id"].as_str().unwrap().parse::<i32>().unwrap();
+            subjects.insert(id, Subject {
                 name: subject["name"].as_str().unwrap().to_string(),
                 name_short: subject["short"].as_str().unwrap().to_string(),
-            })
+            });
         }
 
         if cfg!(debug_assertions) {
@@ -352,16 +353,16 @@ impl Educlient {
             println!("Deserializing dbi/dayplan");
         }
         if cfg!(debug_assertions) {
-            println!("Deserializing dbi/dayplan/lessons");
+            println!("Deserializing dbi/day_plans/lessons");
         }
-        let mut day_plans: Vec<DayPlan> = Vec::new();
+        let mut day_plans: HashMap<String, Vec<Lesson>> = HashMap::new();
         for date in self.json["dp"]["dates"].as_object().unwrap() {
-            let mut lessons = Vec::new();
-            for lesson in date.1["plan"].as_array().unwrap() {
-                if lesson["periodorbreak"].as_str().unwrap() == "ZZZ" {
+            let mut lessons: Vec<Lesson> = Vec::new();
+            for plan in date.1["plan"].as_array().unwrap() {
+                if plan["periodorbreak"].as_str().unwrap() == "ZZZ" {
                     continue;
                 }
-                let subject_id = if let Some(id) = lesson["subjectid"].as_str() {
+                let subject_id = if let Some(id) = plan["subjectid"].as_str() {
                     if !id.is_empty() {
                         Some(id.parse::<i32>().unwrap())
                     } else {
@@ -370,7 +371,7 @@ impl Educlient {
                 } else {
                     None
                 };
-                let plan_id = if let Some(id) = lesson["groupsubjectids"].as_array().unwrap().first()
+                let plan_id = if let Some(id) = plan["groupsubjectids"].as_array().unwrap().first()
                 {
                     if id.is_null() {
                         None
@@ -380,17 +381,17 @@ impl Educlient {
                 } else {
                     None
                 };
-                lessons.push(Lesson {
+                let period = plan["period"].as_str().unwrap().parse::<i32>().unwrap();
+                let lesson: Lesson = Lesson {
                     subject_id,
                     plan_id,
-                    period: lesson["period"].as_str().unwrap().parse::<i32>().unwrap(),
-                })
+                    period,
+                };
+                lessons.push(lesson)
             }
-            day_plans.push(DayPlan {
-                date: date.0.to_string(),
-                lessons,
-            })
+            day_plans.insert(date.0.to_string(), lessons);
         }
+        
         let dbi = DBI {
             students,
             teachers,
@@ -408,7 +409,7 @@ impl Educlient {
 
         Ok(Data {
             ringing,
-            userdata,
+            user: userdata,
             dbi,
             nameday_today,
             nameday_tomorrow,

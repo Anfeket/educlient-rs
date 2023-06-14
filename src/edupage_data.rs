@@ -1,13 +1,14 @@
+use std::collections::HashMap;
 use crate::edupage_types::*;
 
 #[derive(Debug, Clone)]
 pub struct Data {
     pub ringing: Vec<Ringing>,
-    pub userdata: User,
+    pub user: User,
     pub dbi: DBI,
     pub nameday_today: String,
     pub nameday_tomorrow: String,
-    pub day_plans: Vec<DayPlan>,
+    pub day_plans: HashMap<String, Vec<Lesson>>,
     pub year: i32,
 }
 
@@ -30,7 +31,7 @@ pub struct DBI {
     pub parents: Vec<Parent>,
     pub plans: Vec<Plan>,
     pub students: Vec<Student>,
-    pub subjects: Vec<Subject>,
+    pub subjects: HashMap<i32, Subject>,
     pub teachers: Vec<Teacher>,
     pub homeworks_enabled: bool,
     pub art_school: bool,
@@ -86,7 +87,6 @@ pub struct Student {
 
 #[derive(Debug, Clone)]
 pub struct Subject {
-    pub id: i32,
     pub name: String,
     pub name_short: String,
 }
@@ -102,11 +102,6 @@ pub struct Teacher {
     pub classroom_id: Option<i32>,
 }
 
-#[derive(Debug, Clone)]
-pub struct DayPlan {
-    pub date: String,
-    pub lessons: Vec<Lesson>,
-}
 
 #[derive(Debug, Clone)]
 pub struct Ringing {
