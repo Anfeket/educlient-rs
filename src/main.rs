@@ -79,10 +79,23 @@ fn main() {
         let name = &data.dbi.subjects[&lesson.subject_id.unwrap()].name;
         println!("{}: {}", lesson.period, name);
     }
+
+    println!("\nLatest messages: ");
+    let mut c = 0;
+    for message in data.timeline {
+        if message.text.is_empty() {
+            continue;
+        }
+        if c > 5 {
+            break;
+        }
+        println!("{}: {}", message.author, message.text);
+        c += 1;
+    }
 }
 
 fn login(args: &Vec<String>) -> Option<Educlient> {
-    if args[5] == "-j" {
+    if args.get(5) == Some(&"-j".to_string()) {
         let mut client = Educlient::new(args[4].to_string());
         if client.login(args[2].to_string(), args[3].to_string()).is_err() {
             println!("Failed to login");
@@ -102,13 +115,12 @@ fn login(args: &Vec<String>) -> Option<Educlient> {
         } else {
             println!("Logged data to {}", args[6]);
         }
-        Some(client)
-    } else {
-        let mut client = Educlient::new(args[4].to_string());
-        if client.login(args[2].to_string(), args[3].to_string()).is_err() {
-            println!("Failed to login");
-            return None;
-        }
-        Some(client)
+        return Some(client);
     }
+    let mut client = Educlient::new(args[4].to_string());
+    if client.login(args[2].to_string(), args[3].to_string()).is_err() {
+        println!("Failed to login");
+        return None;
+    }
+    return Some(client);
 }

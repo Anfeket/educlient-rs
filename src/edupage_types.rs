@@ -6,9 +6,10 @@ pub enum Gender {
 
 #[derive(Debug, Clone)]
 pub enum AccountType {
-    Student,
-    Parent,
-    Teacher,
+    Student(i32),
+    Parent(i32),
+    Teacher(i32),
+    Admin,
 }
 
 #[derive(Debug, Clone)]

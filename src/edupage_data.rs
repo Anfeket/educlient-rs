@@ -10,13 +10,13 @@ pub struct Data {
     pub nameday_tomorrow: String,
     pub day_plans: HashMap<String, Vec<Lesson>>,
     pub year: i32,
+    pub timeline: Vec<TimelineEvent>,
 }
 
 #[derive(Debug, Clone)]
 pub struct User {
-    pub id: i32,
+    pub user: AccountType,
     pub class_id: Option<i32>,
-    pub user_type: AccountType,
     pub first_name: String,
     pub last_name: String,
     pub mail: String,
@@ -115,4 +115,15 @@ pub struct Lesson {
     pub subject_id: Option<i32>,
     pub plan_id: Option<i32>,
     pub period: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct TimelineEvent {
+    pub id: i32,
+    pub added: String,
+    pub time: Option<String>,
+    pub author: String,
+    pub recipient: String,
+    pub text: String,
+    pub data: serde_json::Value,
 }

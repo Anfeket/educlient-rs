@@ -83,18 +83,15 @@ impl Educlient {
         if cfg!(debug_assertions) {
             println!("Deserializing userdata");
         }
-        let (id, user_type) = if let Some(id) = self.json["userrow"]["UcitelID"].as_str() {
+        let user = if let Some(id) = self.json["userrow"]["UcitelID"].as_str() {
             let id = id.parse::<i32>().unwrap();
-            let user_type = AccountType::Teacher;
-            (id, user_type)
+            AccountType::Teacher(id)
         } else if let Some(id) = self.json["userrow"]["StudentID"].as_str() {
             let id = id.parse::<i32>().unwrap();
-            let user_type = AccountType::Student;
-            (id, user_type)
+            AccountType::Student(id)
         } else if let Some(id) = self.json["userrow"]["RodicID"].as_str() {
             let id = id.parse::<i32>().unwrap();
-            let user_type = AccountType::Parent;
-            (id, user_type)
+            AccountType::Parent(id)
         } else {
             return Err(Error::ParseError);
         };
@@ -119,9 +116,8 @@ impl Educlient {
             .unwrap()
             .to_string();
         let userdata = User {
-            id,
+            user,
             class_id,
-            user_type,
             first_name,
             last_name,
             mail,
@@ -407,6 +403,31 @@ impl Educlient {
             println!("Finished deserializing");
         }
 
+        let mut timeline = Vec::<TimelineEvent>::new();
+        for event in self.json["items"].as_array().unwrap() {
+            let time = if event["cas_udalosti"].is_null() {
+                None
+            } else {
+                Some(event["cas_udalosti"].as_str().unwrap().to_string())
+            };
+            let id = event["timelineid"].as_str().unwrap().parse::<i32>().unwrap();
+            let added = event["cas_pridania"].as_str().unwrap().to_string();
+            let author = event["vlastnik"].as_str().unwrap().to_string();
+            let recipient = event["user"].as_str().unwrap().to_string();
+            let text = event["text"].as_str().unwrap().to_string();
+            let data = event["data"].clone();
+            let timeline_event = TimelineEvent {
+                id,
+                added,
+                time,
+                author,
+                recipient,
+                text,
+                data,
+            };
+            timeline.push(timeline_event)
+        }
+
         Ok(Data {
             ringing,
             user: userdata,
@@ -414,7 +435,8 @@ impl Educlient {
             nameday_today,
             nameday_tomorrow,
             day_plans,
-            year
+            year,
+            timeline,
         })
     }
 }
