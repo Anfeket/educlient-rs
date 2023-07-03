@@ -1,5 +1,8 @@
 use educlient::Educlient;
-use std::{fs::File, io::{Write, Read}};
+use std::{
+    fs::File,
+    io::{Read, Write},
+};
 
 fn main() {
     // argv
@@ -26,11 +29,11 @@ fn main() {
             }
             client.json = serde_json::from_str(&data).unwrap();
             client
-        },
+        }
         _ => {
             println!("Usage:\n  edupage-rs login <username> <password> <domain> [-j <file>]\n  edupage-rs import <file>");
             return;
-        },
+        }
     };
 
     println!("Deserializing data");
@@ -40,14 +43,15 @@ fn main() {
         println!("Failed to deserialize data");
         return;
     }
-    println!("Deserialization successful, took {}ms", time.elapsed().as_millis());
+    println!(
+        "Deserialization successful, took {}ms",
+        time.elapsed().as_millis()
+    );
     let data = deserialize.unwrap();
 
     println!("Select Date:");
-    let mut i = 0;
-    for date in data.day_plans.keys() {
+    for (i, date) in data.day_plans.keys().enumerate() {
         println!("{}: {}", i, date);
-        i += 1;
     }
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
@@ -73,7 +77,7 @@ fn main() {
     println!("Lessons for {}:", date);
     for lesson in lessons {
         if lesson.subject_id.is_none() {
-            println!("{}: {}", lesson.period, "Free");
+            println!("{}: Free", lesson.period);
             continue;
         }
         let name = &data.dbi.subjects[&lesson.subject_id.unwrap()].name;
@@ -94,10 +98,13 @@ fn main() {
     }
 }
 
-fn login(args: &Vec<String>) -> Option<Educlient> {
+fn login(args: &[String]) -> Option<Educlient> {
     if args.get(5) == Some(&"-j".to_string()) {
         let mut client = Educlient::new(args[4].to_string());
-        if client.login(args[2].to_string(), args[3].to_string()).is_err() {
+        if client
+            .login(args[2].to_string(), args[3].to_string())
+            .is_err()
+        {
             println!("Failed to login");
             return None;
         } else {
@@ -118,9 +125,12 @@ fn login(args: &Vec<String>) -> Option<Educlient> {
         return Some(client);
     }
     let mut client = Educlient::new(args[4].to_string());
-    if client.login(args[2].to_string(), args[3].to_string()).is_err() {
+    if client
+        .login(args[2].to_string(), args[3].to_string())
+        .is_err()
+    {
         println!("Failed to login");
         return None;
     }
-    return Some(client);
+    Some(client)
 }

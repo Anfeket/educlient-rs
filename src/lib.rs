@@ -3,9 +3,9 @@ pub mod edupage_types;
 
 use edupage_data::*;
 use edupage_types::*;
-use std::collections::HashMap;
 use reqwest::blocking;
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Educlient {
@@ -95,11 +95,9 @@ impl Educlient {
         } else {
             return Err(Error::ParseError);
         };
-        let class_id = if let Some(id) = self.json["userrow"]["TriedaID"].as_str() {
-            Some(id.parse::<i32>().unwrap())
-        } else {
-            None
-        };
+        let class_id = self.json["userrow"]["TriedaID"]
+            .as_str()
+            .map(|id| id.parse::<i32>().unwrap());
         let first_name = self.json["userrow"]["p_meno"].as_str().unwrap().to_string();
         let last_name = self.json["userrow"]["p_priezvisko"]
             .as_str()
@@ -181,7 +179,7 @@ impl Educlient {
                 name: class["name"].as_str().unwrap().to_string(),
                 name_short: class["short"].as_str().unwrap().to_string(),
                 teacher_id: Some(class["teacherid"].as_str().unwrap().parse::<i32>().unwrap()),
-                teacher2_id
+                teacher2_id,
             })
         }
 
@@ -300,10 +298,13 @@ impl Educlient {
         let mut subjects: HashMap<i32, Subject> = HashMap::new();
         for subject in self.json["dbi"]["subjects"].as_object().unwrap().values() {
             let id = subject["id"].as_str().unwrap().parse::<i32>().unwrap();
-            subjects.insert(id, Subject {
-                name: subject["name"].as_str().unwrap().to_string(),
-                name_short: subject["short"].as_str().unwrap().to_string(),
-            });
+            subjects.insert(
+                id,
+                Subject {
+                    name: subject["name"].as_str().unwrap().to_string(),
+                    name_short: subject["short"].as_str().unwrap().to_string(),
+                },
+            );
         }
 
         if cfg!(debug_assertions) {
@@ -331,7 +332,7 @@ impl Educlient {
                 id: teacher["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 short_name: teacher["short"].as_str().unwrap().to_string(),
                 since: teacher["datefrom"].as_str().unwrap().to_string(),
-                classroom_id
+                classroom_id,
             })
         }
 
@@ -387,7 +388,7 @@ impl Educlient {
             }
             day_plans.insert(date.0.to_string(), lessons);
         }
-        
+
         let dbi = DBI {
             students,
             teachers,
@@ -410,7 +411,11 @@ impl Educlient {
             } else {
                 Some(event["cas_udalosti"].as_str().unwrap().to_string())
             };
-            let id = event["timelineid"].as_str().unwrap().parse::<i32>().unwrap();
+            let id = event["timelineid"]
+                .as_str()
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
             let added = event["cas_pridania"].as_str().unwrap().to_string();
             let author = event["vlastnik"].as_str().unwrap().to_string();
             let recipient = event["user"].as_str().unwrap().to_string();

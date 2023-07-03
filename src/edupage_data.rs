@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::edupage_types::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Data {
@@ -101,7 +101,6 @@ pub struct Teacher {
     pub since: String,
     pub classroom_id: Option<i32>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Ringing {
