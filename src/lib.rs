@@ -216,47 +216,49 @@ impl Educlient {
             println!("Deserializing dbi/plans");
         }
         let mut plans: Vec<Plan> = Vec::new();
-        for plan in self.json["dbi"]["plans"].as_object().unwrap().values() {
-            let mut class_ids: Vec<i32> = Vec::new();
-            for class in plan["triedy"].as_array().unwrap() {
-                if class.is_string() {
-                    class_ids.push(class.as_str().unwrap().parse::<i32>().unwrap());
-                    continue;
+        if self.json["dbi"]["plans"].is_object() {
+            for plan in self.json["dbi"]["plans"].as_object().unwrap().values() {
+                let mut class_ids: Vec<i32> = Vec::new();
+                for class in plan["triedy"].as_array().unwrap() {
+                    if class.is_string() {
+                        class_ids.push(class.as_str().unwrap().parse::<i32>().unwrap());
+                        continue;
+                    }
+                    if class.is_i64() {
+                        class_ids.push(class.as_i64().unwrap() as i32);
+                        continue;
+                    }
+                    return Err(Error::ParseError);
                 }
-                if class.is_i64() {
-                    class_ids.push(class.as_i64().unwrap() as i32);
-                    continue;
+                let mut students: Vec<i32> = Vec::new();
+                for student in plan["students"].as_array().unwrap() {
+                    if student.is_string() {
+                        students.push(student.as_str().unwrap().parse::<i32>().unwrap());
+                        continue;
+                    }
+                    if student.is_i64() {
+                        students.push(student.as_i64().unwrap() as i32);
+                        continue;
+                    }
+                    if student.is_null() {
+                        break;
+                    }
+                    return Err(Error::ParseError);
                 }
-                return Err(Error::ParseError);
+                plans.push(Plan {
+                    plan_id: plan["planid"].as_str().unwrap().parse::<i32>().unwrap(),
+                    name: plan["predmetMeno"].as_str().unwrap().to_string(),
+                    subject_id: plan["predmetid"].as_str().unwrap().parse::<i32>().unwrap(),
+                    teachers: plan["ucitelids"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|x| x.as_str().unwrap().parse::<i32>().unwrap())
+                        .collect(),
+                    class_ids,
+                    students,
+                })
             }
-            let mut students: Vec<i32> = Vec::new();
-            for student in plan["students"].as_array().unwrap() {
-                if student.is_string() {
-                    students.push(student.as_str().unwrap().parse::<i32>().unwrap());
-                    continue;
-                }
-                if student.is_i64() {
-                    students.push(student.as_i64().unwrap() as i32);
-                    continue;
-                }
-                if student.is_null() {
-                    break;
-                }
-                return Err(Error::ParseError);
-            }
-            plans.push(Plan {
-                plan_id: plan["planid"].as_str().unwrap().parse::<i32>().unwrap(),
-                name: plan["predmetMeno"].as_str().unwrap().to_string(),
-                subject_id: plan["predmetid"].as_str().unwrap().parse::<i32>().unwrap(),
-                teachers: plan["ucitelids"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|x| x.as_str().unwrap().parse::<i32>().unwrap())
-                    .collect(),
-                class_ids,
-                students,
-            })
         }
 
         if cfg!(debug_assertions) {
@@ -378,6 +380,9 @@ impl Educlient {
                 } else {
                     None
                 };
+                if plan["period"].as_str().is_none() {
+                    continue;
+                }
                 let period = plan["period"].as_str().unwrap().parse::<i32>().unwrap();
                 let lesson: Lesson = Lesson {
                     subject_id,
