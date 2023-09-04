@@ -36,22 +36,14 @@ fn main() {
         }
     };
 
-    println!("Deserializing data");
+    println!("Deserializing data...");
     let time = std::time::Instant::now();
-    let deserialize = client.deserialize();
-    if deserialize.is_err() {
-        println!("Failed to deserialize data");
-        return;
-    }
-    println!(
-        "Deserialization successful, took {}ms",
-        time.elapsed().as_millis()
-    );
-    let data = deserialize.unwrap();
+    let data = client.data().unwrap();
+    println!("Deserialized data in {}ms", time.elapsed().as_millis());
 
     println!("Select Date:");
-    for (i, date) in data.day_plans.keys().enumerate() {
-        println!("{}: {}", i, date);
+    for (i, day_plan) in data.day_plans.iter().enumerate() {
+        println!("{}. {}", i + 1, day_plan.date);
     }
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
@@ -61,27 +53,26 @@ fn main() {
         return;
     }
     let input = input.unwrap();
-    let date = data.day_plans.keys().nth(input);
-    if date.is_none() {
+    if input > data.day_plans.len() {
         println!("Invalid input");
         return;
     }
-    let date = date.unwrap();
-    let lessons = data.day_plans.get(date);
-    if lessons.is_none() {
-        println!("Invalid input");
-        return;
-    }
-    let lessons = lessons.unwrap();
-
-    println!("Lessons for {}:", date);
-    for lesson in lessons {
+    let day_plan = &data.day_plans[input - 1];
+    println!("Lessons:");
+    for lesson in &day_plan.lessons {
         if lesson.subject_id.is_none() {
-            println!("{}: Free", lesson.period);
             continue;
         }
-        let name = &data.dbi.subjects[&lesson.subject_id.unwrap()].name;
-        println!("{}: {}", lesson.period, name);
+        let subject = data.dbi.subject_from_id(lesson.subject_id.unwrap()).unwrap();
+        let plan = data.dbi.plan_from_id(lesson.plan_id.unwrap()).unwrap();
+        let teacherid = plan.teachers.first().unwrap();
+        let teacher = data.dbi.teacher_from_id(*teacherid).unwrap();
+        println!(
+            "{}. {} - {}",
+            lesson.period,
+            teacher.name(),
+            subject.name
+        );
     }
 
     println!("\nLatest messages: ");

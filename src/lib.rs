@@ -5,7 +5,6 @@ use edupage_data::*;
 use edupage_types::*;
 use reqwest::blocking;
 use serde_json::Value;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Educlient {
@@ -71,7 +70,7 @@ impl Educlient {
         Ok(json.unwrap())
     }
 
-    pub fn deserialize(&self) -> Result<Data, Error> {
+    pub fn data(&self) -> Result<Data, Error> {
         if self.json.is_null() {
             if self.logged_in {
                 return Err(Error::NotFound);
@@ -297,12 +296,11 @@ impl Educlient {
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/subjects");
         }
-        let mut subjects: HashMap<i32, Subject> = HashMap::new();
+        let mut subjects: Vec<Subject> = Vec::new();
         for subject in self.json["dbi"]["subjects"].as_object().unwrap().values() {
-            let id = subject["id"].as_str().unwrap().parse::<i32>().unwrap();
-            subjects.insert(
-                id,
+            subjects.push(
                 Subject {
+                    id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
                     name: subject["name"].as_str().unwrap().to_string(),
                     name_short: subject["short"].as_str().unwrap().to_string(),
                 },
@@ -350,11 +348,9 @@ impl Educlient {
 
         if cfg!(debug_assertions) {
             println!("Deserializing dbi/dayplan");
-        }
-        if cfg!(debug_assertions) {
             println!("Deserializing dbi/day_plans/lessons");
         }
-        let mut day_plans: HashMap<String, Vec<Lesson>> = HashMap::new();
+        let mut day_plans: Vec<DayPlan> = Vec::new();
         for date in self.json["dp"]["dates"].as_object().unwrap() {
             let mut lessons: Vec<Lesson> = Vec::new();
             for plan in date.1["plan"].as_array().unwrap() {
@@ -391,7 +387,11 @@ impl Educlient {
                 };
                 lessons.push(lesson)
             }
-            day_plans.insert(date.0.to_string(), lessons);
+
+            day_plans.push(DayPlan {
+                date: date.0.to_string(),
+                lessons,
+            })
         }
 
         let dbi = DBI {
@@ -405,10 +405,10 @@ impl Educlient {
             classrooms,
             parents,
         };
-        if cfg!(debug_assertions) {
-            println!("Finished deserializing");
-        }
 
+        if cfg!(debug_assertions) {
+            println!("Deserializing timeline");
+        }
         let mut timeline = Vec::<TimelineEvent>::new();
         for event in self.json["items"].as_array().unwrap() {
             let time = if event["cas_udalosti"].is_null() {
@@ -422,8 +422,8 @@ impl Educlient {
                 .parse::<i32>()
                 .unwrap();
             let added = event["cas_pridania"].as_str().unwrap().to_string();
-            let author = event["vlastnik"].as_str().unwrap().to_string();
-            let recipient = event["user"].as_str().unwrap().to_string();
+            let author= Self::account_from_string(event["vlastnik"].as_str().unwrap().to_string());
+            let recipient = Self::account_from_string(event["user"].as_str().unwrap().to_string());
             let text = event["text"].as_str().unwrap().to_string();
             let data = event["data"].clone();
             let timeline_event = TimelineEvent {
@@ -438,6 +438,10 @@ impl Educlient {
             timeline.push(timeline_event)
         }
 
+        if cfg!(debug_assertions) {
+            println!("Finished deserializing");
+        }
+        
         Ok(Data {
             ringing,
             user: userdata,
@@ -448,5 +452,34 @@ impl Educlient {
             year,
             timeline,
         })
+    }
+
+    pub fn account_from_string(name: String) -> AccountType {
+        println!("{}", name);
+        if name.starts_with("Student") {
+            let id = name[8..].parse::<i32>();
+            match id {
+                Ok(id) => return AccountType::Student(id),
+                Err(_) => return AccountType::Other(name),
+            }
+        }
+        if name.starts_with("Rodic-") {
+            let id = name[6..].parse::<i32>();
+            match id {
+                Ok(id) => return AccountType::Parent(id),
+                Err(_) => return AccountType::Other(name),
+            }
+        }
+        if name.starts_with("Ucitel-") {
+            let id = name[7..].parse::<i32>();
+            match id {
+                Ok(id) => return AccountType::Teacher(id),
+                Err(_) => return AccountType::Other(name),
+            }
+        }
+        if name.starts_with("Admin") {
+            return AccountType::Admin;
+        }
+        AccountType::Other(name)
     }
 }
