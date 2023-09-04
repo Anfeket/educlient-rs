@@ -470,7 +470,7 @@ impl Educlient {
                 Err(_) => return AccountType::Other(name),
             }
         }
-        if name.starts_with("Ucitel-") {
+        if name.starts_with("Ucitel") {
             let id = name[7..].parse::<i32>();
             match id {
                 Ok(id) => return AccountType::Teacher(id),
