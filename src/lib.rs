@@ -456,28 +456,28 @@ impl Educlient {
 
     pub fn account_from_string(name: String) -> AccountType {
         println!("{}", name);
-        if name.starts_with("Student") {
-            let id = name[8..].parse::<i32>();
+        if let Some(id) = name.strip_prefix("Student") {
+            let id = id.parse::<i32>();
             match id {
                 Ok(id) => return AccountType::Student(id),
                 Err(_) => return AccountType::Other(name),
             }
         }
-        if name.starts_with("Rodic-") {
-            let id = name[6..].parse::<i32>();
+        if let Some(id) = name.strip_prefix("Rodic-") {
+            let id = id.parse::<i32>();
             match id {
                 Ok(id) => return AccountType::Parent(id),
                 Err(_) => return AccountType::Other(name),
             }
         }
-        if name.starts_with("Ucitel") {
-            let id = name[7..].parse::<i32>();
+        if let Some(id) = name.strip_prefix("Ucitel") {
+            let id = id.parse::<i32>();
             match id {
                 Ok(id) => return AccountType::Teacher(id),
                 Err(_) => return AccountType::Other(name),
             }
         }
-        if name.starts_with("Admin") {
+        if name == "Admin" {
             return AccountType::Admin;
         }
         AccountType::Other(name)
