@@ -37,6 +37,10 @@ impl Educlient {
             return Err(Error::LoginFailed);
         }
         let data = res.text().unwrap().replace(['\t', '\r', '\n'], "");
+        if data.contains("Requested url not found!") {
+            self.logged_in = false;
+            return Err(Error::NoResponse);
+        }
         let data = data.split("userhome(").collect::<Vec<_>>();
         let data = data[1].split(");").collect::<Vec<_>>();
         let data = data[0].to_string();
