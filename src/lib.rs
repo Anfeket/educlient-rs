@@ -181,7 +181,7 @@ impl Educlient {
                 id: class["id"].as_str().unwrap().parse::<i32>().unwrap(),
                 name: class["name"].as_str().unwrap().to_string(),
                 name_short: class["short"].as_str().unwrap().to_string(),
-                teacher_id: Some(class["teacherid"].as_str().unwrap().parse::<i32>().unwrap()),
+                teacher_id: class["teacherid"].as_str().unwrap().parse::<i32>().ok(),
                 teacher2_id,
             })
         }
@@ -302,13 +302,11 @@ impl Educlient {
         }
         let mut subjects: Vec<Subject> = Vec::new();
         for subject in self.json["dbi"]["subjects"].as_object().unwrap().values() {
-            subjects.push(
-                Subject {
-                    id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
-                    name: subject["name"].as_str().unwrap().to_string(),
-                    name_short: subject["short"].as_str().unwrap().to_string(),
-                },
-            );
+            subjects.push(Subject {
+                id: subject["id"].as_str().unwrap().parse::<i32>().unwrap(),
+                name: subject["name"].as_str().unwrap().to_string(),
+                name_short: subject["short"].as_str().unwrap().to_string(),
+            });
         }
 
         if cfg!(debug_assertions) {
@@ -426,7 +424,7 @@ impl Educlient {
                 .parse::<i32>()
                 .unwrap();
             let added = event["cas_pridania"].as_str().unwrap().to_string();
-            let author= Self::account_from_string(event["vlastnik"].as_str().unwrap().to_string());
+            let author = Self::account_from_string(event["vlastnik"].as_str().unwrap().to_string());
             let recipient = Self::account_from_string(event["user"].as_str().unwrap().to_string());
             let text = event["text"].as_str().unwrap().to_string();
             let data = event["data"].clone();
@@ -445,7 +443,7 @@ impl Educlient {
         if cfg!(debug_assertions) {
             println!("Finished deserializing");
         }
-        
+
         Ok(Data {
             ringing,
             user: userdata,

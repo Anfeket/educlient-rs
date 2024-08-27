@@ -98,9 +98,8 @@ fn login(args: &[String]) -> Option<Educlient> {
         {
             println!("Failed to login");
             return None;
-        } else {
-            println!("Logged in as {}", args[4]);
         }
+        println!("Logged in as {}", args[4]);
         let file = File::create(&args[6]);
         if file.is_err() {
             println!("Failed to create file");
