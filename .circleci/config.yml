@@ -37,7 +37,7 @@ jobs:
             cp target/x86_64-unknown-linux-gnu/release/educlient arts/linux/educlient
       - run:
           name: Run tests
-          command: cargo test
+          command: cargo test -r
       - persist_to_workspace:
           root: arts
           paths:
