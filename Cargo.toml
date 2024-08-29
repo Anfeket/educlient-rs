@@ -1,10 +1,10 @@
 [package]
 name = "educlient"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11.18", features = ["blocking", "cookies"] }
-serde_json = "1.0.96"
+reqwest = { version = "0.12.7", features = ["blocking", "cookies"] }
+serde_json = "1.0.127"

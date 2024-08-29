@@ -485,3 +485,22 @@ impl Educlient {
         AccountType::Other(name)
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use crate::Educlient;
+
+    #[test]
+    fn basic() {
+        let domain = env::var("TESTDOMAIN").unwrap();
+        let username = env::var("TESTUSERNAME").unwrap();
+        let password = env::var("TESTPASSWORD").unwrap();
+        let mut client = Educlient::new(domain);
+        if let Err(err) = client.login(username, password) {
+            panic!("{:?}", err)
+        }
+    }
+}
