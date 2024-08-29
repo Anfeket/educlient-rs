@@ -6,7 +6,7 @@ version: 2.1
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 
 jobs:
-  rust-build-win:
+  rust-build-windows:
     docker:
       - image: cimg/rust:1.70.0
     steps:
@@ -35,6 +35,9 @@ jobs:
             cargo build --release --target x86_64-unknown-linux-gnu
             mkdir -p arts/linux/
             cp target/x86_64-unknown-linux-gnu/release/educlient arts/linux/educlient
+      - run:
+          name: Run tests
+          command: cargo test
       - persist_to_workspace:
           root: arts
           paths:
@@ -46,7 +49,7 @@ jobs:
       - attach_workspace:
           at: arts
       - run:
-          name: test
+          name: Upload artifacts
           command: |
             mkdir arts/upload
             cp arts/windows/educlient.exe arts/upload/educlient.exe
@@ -61,9 +64,9 @@ jobs:
 workflows:
   workflow:
     jobs:
-      - rust-build-win
+      - rust-build-windows
       - rust-build-linux
       - rust-artifacts:
           requires:
-            - rust-build-win
+            - rust-build-windows
             - rust-build-linux
