@@ -63,16 +63,51 @@ fn main() {
         if lesson.subject_id.is_none() {
             continue;
         }
-        let subject = data.dbi.subject_from_id(lesson.subject_id.unwrap()).unwrap();
-        let plan = data.dbi.plan_from_id(lesson.plan_id.unwrap()).unwrap();
-        let teacherid = plan.teachers.first().unwrap();
-        let teacher = data.dbi.teacher_from_id(*teacherid).unwrap();
-        println!(
-            "{}. {} - {}",
-            lesson.period,
-            teacher.name(),
-            subject.name
-        );
+
+        // Try to get the subject, use a placeholder if not found
+        let subject = match data.dbi.subject_from_id(lesson.subject_id.unwrap()) {
+            Some(subject) => subject,
+            None => {
+                println!(
+                    "{}. {} - Subject not found",
+                    lesson.period, "Unknown Teacher"
+                );
+                continue;
+            }
+        };
+
+        // Try to get the plan, use a placeholder if not found
+        let plan = match lesson.plan_id {
+            Some(plan_id) => match data.dbi.plan_from_id(plan_id) {
+                Some(plan) => plan,
+                None => {
+                    println!(
+                        "{}. {} - {}",
+                        lesson.period, "Unknown Teacher", subject.name
+                    );
+                    continue;
+                }
+            },
+            None => {
+                println!(
+                    "{}. {} - {}",
+                    lesson.period, "Unknown Teacher", subject.name
+                );
+                continue;
+            }
+        };
+
+        // Try to get the first teacher, use a placeholder if not found
+        let teacher_name = match plan.teachers.first() {
+            Some(teacher_id) => match data.dbi.teacher_from_id(*teacher_id) {
+                Some(teacher) => teacher.name(),
+                None => "Unknown Teacher".to_string(),
+            },
+            None => "Unknown Teacher".to_string(),
+        };
+
+        // Print the lesson details
+        println!("{}. {} - {}", lesson.period, teacher_name, subject.name);
     }
 
     println!("\nLatest messages: ");

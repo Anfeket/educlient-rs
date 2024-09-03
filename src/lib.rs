@@ -486,7 +486,6 @@ impl Educlient {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::env;
