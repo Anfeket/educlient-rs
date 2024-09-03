@@ -12,7 +12,7 @@
 use educlient::Educlient;
 
 fn main() {
-    let client = Educlient::new("username", "password", "domain");
+    let client = Educlient::new("domain").login("username", "password");
 
     let grades = client.get_grades().unwrap();
     println!("{}", grades);
